@@ -151,6 +151,17 @@ export function Dashboard({ periodKey }: { periodKey: string }) {
         <Kpi title="Saldo minimo" value={formatEur(m.minBalanceCents)} sub="soglia da non scendere sotto" />
         <Kpi title="Budget spendibile" value={formatEur(m.budgetCents)} sub={m.fundsCents > 0 ? "saldo + fondi − minimo" : "saldo iniziale − minimo"} />
         <Kpi title="Fondi aggiunti" value={m.fundsCents > 0 ? `+${formatEur(m.fundsCents)}` : formatEur(0)} sub={plural(m.fundCount, "versamento", "versamenti")} tone={m.fundsCents > 0 ? "ok" : "neutral"} />
+        <Kpi
+          title="Spese di oggi"
+          value={m.todayInPeriod ? formatEur(m.todaySpentCents) : "—"}
+          sub={
+            !m.todayInPeriod
+              ? "oggi non è in questo periodo"
+              : m.todayMovementCount === 0
+                ? "nessuna spesa oggi"
+                : plural(m.todayMovementCount, "movimento", "movimenti")
+          }
+        />
         <Kpi title="Spese del periodo" value={formatEur(m.spentCents)} sub={plural(m.movementCount, "movimento", "movimenti")} />
         <Kpi
           title="Budget residuo"

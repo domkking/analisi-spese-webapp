@@ -1,6 +1,6 @@
 {
   "name": "analisi-spese-web",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "private": true,
   "type": "module",
   "description": "Analisi Spese: web app per il controllo del budget per periodo di stipendio (dati solo sul dispositivo).",

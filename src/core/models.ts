@@ -111,6 +111,11 @@ export interface PeriodMetrics {
   readonly dailyBudgetLeftCents: number | null;
   readonly topMovement: Movement | null;
   readonly movementCount: number;
+  /** true se «oggi» cade nel periodo visualizzato (altrimenti le spese di oggi non si applicano). */
+  readonly todayInPeriod: boolean;
+  /** Spese con data odierna (solo uscite: i fondi non contano). */
+  readonly todaySpentCents: number;
+  readonly todayMovementCount: number;
   readonly overBudget: boolean;
 }
 

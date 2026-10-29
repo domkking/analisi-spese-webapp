@@ -193,3 +193,11 @@ body:has(dialog[open]) { overflow: hidden; }
   .modal-btn { flex: 1 1 0; }
 }
 @media (prefers-reduced-motion: reduce) { .modal[open] { animation: none; } }
+
+/* ---- modalità modifica ---- */
+.editing-card { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.form-title { flex-basis: 100%; font-size: 14px; margin: 0; color: var(--text); }
+.cancel-edit { height: 40px; }
+tbody tr.editing { outline: 2px solid var(--accent); outline-offset: -2px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sortable-row.selected .row-main span:first-child { font-weight: 700; }

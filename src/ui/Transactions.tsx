@@ -1,6 +1,18 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
-import { addMovement, deleteMovements, formatDateIt, formatEur, movementsForKey, parseAmount, periodBounds, plural } from "../core/index.ts";
+import {
+  addMovement,
+  deleteMovements,
+  formatDateIt,
+  formatEur,
+  formatInput,
+  movementsForKey,
+  parseAmount,
+  periodBounds,
+  plural,
+  updateMovement,
+  type Movement,
+} from "../core/index.ts";
 import { useApp } from "../state/AppContext.tsx";
 import { useConfirm } from "./components/Confirm.tsx";
 import { Field } from "./components/Field.tsx";
@@ -26,19 +38,52 @@ export function Transactions({ periodKey, onPeriodChange }: Props) {
   const [method, setMethod] = useState("");
   const [amount, setAmount] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const descriptionRef = useRef<HTMLInputElement | null>(null);
 
-  const categoryValue = ledger.categories.some((c) => c.name === category) ? category : (ledger.categories[0]?.name ?? "");
-  const methodValue = ledger.methods.includes(method) ? method : (ledger.methods[0] ?? "");
+  // Il movimento in modifica sparisce (eliminato, altro periodo): si torna alla modalità «nuovo».
+  const editing = rows.find((m) => m.id === editingId) ?? null;
+  useEffect(() => {
+    if (editingId !== null && editing === null) setEditingId(null);
+  }, [editingId, editing]);
+
+  const categoryNames = ledger.categories.map((c) => c.name);
+  // se la categoria/metodo del movimento in modifica è stata eliminata, resta selezionabile per non perderla
+  const categoryOptions = editing && !categoryNames.includes(editing.category) ? [...categoryNames, editing.category] : categoryNames;
+  const methodOptions = editing && !ledger.methods.includes(editing.method) ? [...ledger.methods, editing.method] : [...ledger.methods];
+  const categoryValue = categoryOptions.includes(category) ? category : (categoryNames[0] ?? "");
+  const methodValue = methodOptions.includes(method) ? method : (ledger.methods[0] ?? "");
   const selectedIds = rows.filter((m) => selected.has(m.id)).map((m) => m.id);
+
+  function startEdit(m: Movement): void {
+    setEditingId(m.id);
+    setDate(m.date);
+    setDescription(m.description);
+    setCategory(m.category);
+    setMethod(m.method);
+    setAmount(formatInput(m.amountCents));
+    formRef.current?.scrollIntoView({ block: "nearest" });
+    descriptionRef.current?.focus();
+  }
+
+  function resetForm(): void {
+    setEditingId(null);
+    setDescription("");
+    setAmount("");
+    setDate(defaultDate);
+  }
 
   async function submit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    const outcome = await commit((l) =>
-      addMovement(l, { date, description, category: categoryValue, method: methodValue, amountCents: parseAmount(amount) }, { newId, today }),
-    );
+    const wasEditing = editing;
+    const outcome = await commit((l) => {
+      const input = { date, description, category: categoryValue, method: methodValue, amountCents: parseAmount(amount) };
+      return wasEditing ? updateMovement(l, wasEditing.id, input, { newId, today }) : addMovement(l, input, { newId, today });
+    });
     if (!outcome) return;
-    setDescription("");
-    setAmount("");
+    resetForm();
+    if (wasEditing) notify("info", "Movimento aggiornato. Saldi e indicatori sono stati ricalcolati.");
     if (outcome.periodKey !== periodKey) onPeriodChange(outcome.periodKey);
     if (outcome.periodOverrunCents !== null) {
       notify("warn", `Con questa spesa hai superato il budget del periodo di ${formatEur(outcome.periodOverrunCents)}.`);
@@ -75,26 +120,26 @@ export function Transactions({ periodKey, onPeriodChange }: Props) {
 
   return (
     <section aria-label="Movimenti">
-      <form className="card form-grid" onSubmit={(event) => void submit(event)}>
-        <h2 className="section-title wide">Nuovo movimento</h2>
+      <form ref={formRef} className={`card form-grid${editing ? " editing-card" : ""}`} onSubmit={(event) => void submit(event)}>
+        <h2 className="section-title wide">{editing ? "Modifica movimento" : "Nuovo movimento"}</h2>
         <Field label="Data">
           <input type="date" required min="2000-01-01" max="2100-12-31" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label="Descrizione" className="grow">
-          <input maxLength={120} placeholder="Es. Spesa Esselunga" value={description} onChange={(e) => setDescription(e.target.value)} autoComplete="off" />
+          <input ref={descriptionRef} maxLength={120} placeholder="Es. Spesa Esselunga" value={description} onChange={(e) => setDescription(e.target.value)} autoComplete="off" />
         </Field>
         <Field label="Categoria">
           <select value={categoryValue} onChange={(e) => setCategory(e.target.value)}>
-            {ledger.categories.map((c) => (
-              <option key={c.name} value={c.name}>
-                {c.name}
+            {categoryOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
               </option>
             ))}
           </select>
         </Field>
         <Field label="Metodo di pagamento">
           <select value={methodValue} onChange={(e) => setMethod(e.target.value)}>
-            {ledger.methods.map((name) => (
+            {methodOptions.map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>
@@ -105,8 +150,13 @@ export function Transactions({ periodKey, onPeriodChange }: Props) {
           <input inputMode="decimal" placeholder="0,00" required value={amount} onChange={(e) => setAmount(e.target.value)} autoComplete="off" />
         </Field>
         <button type="submit" className="primary">
-          + Aggiungi
+          {editing ? "Salva modifiche" : "+ Aggiungi"}
         </button>
+        {editing && (
+          <button type="button" className="ghost cancel-edit" onClick={resetForm}>
+            Annulla modifica
+          </button>
+        )}
       </form>
 
       <div className="card">
@@ -135,11 +185,14 @@ export function Transactions({ periodKey, onPeriodChange }: Props) {
                   <th>Categoria</th>
                   <th>Metodo</th>
                   <th className="num">Importo</th>
+                  <th className="check">
+                    <span className="visually-hidden">Azioni</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((m) => (
-                  <tr key={m.id} className={selected.has(m.id) ? "selected" : ""}>
+                  <tr key={m.id} className={`${selected.has(m.id) ? "selected" : ""}${editing?.id === m.id ? " editing" : ""}`.trim()}>
                     <td className="check">
                       <input type="checkbox" aria-label={`Seleziona ${m.description || m.category}`} checked={selected.has(m.id)} onChange={() => toggle(m.id)} />
                     </td>
@@ -148,6 +201,11 @@ export function Transactions({ periodKey, onPeriodChange }: Props) {
                     <td>{m.category}</td>
                     <td>{m.method}</td>
                     <td className="num">{formatEur(m.amountCents)}</td>
+                    <td className="check">
+                      <button type="button" className="icon-btn" aria-label={`Modifica ${m.description || m.category}`} title="Modifica" onClick={() => startEdit(m)}>
+                        ✎
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -155,7 +213,7 @@ export function Transactions({ periodKey, onPeriodChange }: Props) {
           </div>
         )}
         <div className="table-foot">
-          <span className="muted">Seleziona una o più righe per eliminarle</span>
+          <span className="muted">Seleziona una o più righe per eliminarle, oppure ✎ per correggerle</span>
           <button type="button" className="danger" disabled={selectedIds.length === 0} onClick={() => void removeSelected()}>
             Elimina selezionati{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
           </button>

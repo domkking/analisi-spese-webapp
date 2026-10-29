@@ -25,6 +25,14 @@ export function Help() {
         «Elimina selezionati».
       </p>
 
+      <h3>Correggere un inserimento</h3>
+      <p>
+        Non serve eliminare e ricreare: nelle schede <em>Movimenti</em> e <em>Fondi</em> premi ✎ sulla riga, correggi i campi nel modulo in alto e
+        scegli «Salva modifiche» (o «Annulla modifica»). In <em>Categorie &amp; Budget</em> clicca una riga per cambiare nome e budget della categoria o
+        rinominare un metodo di pagamento: il nuovo nome viene aggiornato anche sui movimenti già registrati. Saldi, minimo, avvisi e previsioni si
+        ricalcolano da soli.
+      </p>
+
       <h3>3. Aggiungi fondi</h3>
       <p>
         Se durante il periodo arrivano soldi (un rimborso, un bonus, un versamento) registrali nella scheda <em>Fondi</em>: il saldo viene ricalcolato e i fondi
@@ -42,6 +50,7 @@ export function Help() {
       <h3>5. Leggi la Dashboard</h3>
       <ul>
         <li>Saldo attuale = saldo iniziale + fondi − spese registrate.</li>
+        <li>Spese di oggi = somma dei movimenti con la data di oggi (compare solo se oggi cade nel periodo che stai guardando).</li>
         <li>Saldo previsto = saldo attuale − (spesa media giornaliera × giorni rimasti).</li>
         <li>Budget giornaliero residuo = budget residuo ÷ giorni rimasti.</li>
         <li>Avvisi: verde = nel budget, giallo = oltre l'80%, rosso = budget superato.</li>

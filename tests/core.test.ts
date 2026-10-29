@@ -7,6 +7,7 @@ import {
   addMethod,
   addMovement,
   AppError,
+  categoryTotals,
   centsToDecimalString,
   cleanText,
   computeMetrics,
@@ -36,6 +37,10 @@ import {
   startBalance,
   spentByKey,
   totalCategoryBudget,
+  updateCategory,
+  updateFund,
+  updateMethod,
+  updateMovement,
   upsertCategory,
   ValidationError,
   type Change,
@@ -175,6 +180,181 @@ describe("calcoli del periodo", () => {
     assert.equal(computeMetrics(ledger, "2026-10", TODAY).percentTenths, 0);
     const spent = add(ledger, "2026-10-16", "Casa", 1).ledger;
     assert.equal(computeMetrics(spent, "2026-10", TODAY).percentTenths, 1000);
+  });
+});
+
+describe("modifica di movimenti e fondi", () => {
+  const edit = (ledger: Ledger, id: string, patch: Partial<{ date: string; description: string; category: string; method: string; amountCents: number }>) => {
+    const old = ledger.movements.find((m) => m.id === id)!;
+    return updateMovement(
+      ledger,
+      id,
+      { date: old.date, description: old.description, category: old.category, method: old.method, amountCents: old.amountCents, ...patch },
+      deps,
+    );
+  };
+
+  it("corregge importo, descrizione, categoria e metodo mantenendo l'id", () => {
+    const created = add(baseLedger(), "2026-10-16", "Casa", 25_000);
+    const id = created.value.movement.id;
+    const fixed = edit(created.ledger, id, { amountCents: 2_500, description: "Pizza", category: "Svago", method: "Bancomat" });
+    const m = fixed.ledger.movements.find((x) => x.id === id)!;
+    assert.deepEqual([m.amountCents, m.description, m.category, m.method], [2_500, "Pizza", "Svago", "Bancomat"]);
+    assert.equal(fixed.ledger.movements.length, 1);
+    assert.equal(computeMetrics(fixed.ledger, "2026-10", TODAY).spentCents, 2_500);
+  });
+
+  it("spostando la data in un altro periodo ricalcola i saldi riportati", () => {
+    const created = add(baseLedger(), "2026-10-16", "Casa", 10_000);
+    const id = created.value.movement.id;
+    assert.equal(startBalance(created.ledger, "2026-11", spentByKey(created.ledger), TODAY), 990_000);
+    const moved = edit(created.ledger, id, { date: "2026-11-20" });
+    assert.equal(moved.value.periodKey, "2026-11");
+    assert.equal(computeMetrics(moved.ledger, "2026-10", TODAY).spentCents, 0);
+    assert.equal(computeMetrics(moved.ledger, "2026-11", TODAY).spentCents, 10_000);
+    assert.equal(startBalance(moved.ledger, "2026-11", spentByKey(moved.ledger), TODAY), 1_000_000);
+  });
+
+  it("segnala il superamento solo se è la modifica a provocarlo", () => {
+    let ledger = baseLedger(); // budget 500 €, Casa 100 €
+    const created = add(ledger, "2026-10-16", "Casa", 5_000);
+    ledger = created.ledger;
+    const fixed = edit(ledger, created.value.movement.id, { amountCents: 12_000 });
+    assert.equal(fixed.value.categoryAlert?.spentCents, 12_000);
+    assert.equal(fixed.value.periodOverrunCents, null);
+    const again = edit(fixed.ledger, created.value.movement.id, { amountCents: 13_000 });
+    assert.equal(again.value.categoryAlert, null); // già oltre prima della modifica
+    const big = edit(fixed.ledger, created.value.movement.id, { category: "Alimentari", amountCents: 60_000 });
+    assert.equal(big.value.periodOverrunCents, 10_000);
+  });
+
+  it("riducendo l'importo non produce avvisi", () => {
+    const created = add(baseLedger(), "2026-10-16", "Casa", 12_000);
+    const fixed = edit(created.ledger, created.value.movement.id, { amountCents: 1_000 });
+    assert.equal(fixed.value.categoryAlert, null);
+    assert.equal(fixed.value.periodOverrunCents, null);
+  });
+
+  it("accetta una categoria/metodo ormai eliminati solo se restano invariati", () => {
+    const created = add(baseLedger(), "2026-10-16", "Casa", 1_000);
+    const id = created.value.movement.id;
+    const withoutCasa = deleteCategory(created.ledger, "Casa").ledger;
+    const ok = edit(withoutCasa, id, { amountCents: 2_000 });
+    assert.equal(ok.ledger.movements[0]?.category, "Casa");
+    assert.throws(() => edit(withoutCasa, id, { category: "Inventata" }), ValidationError);
+    const noMethod = { ...created.ledger, methods: ["Bonifico"] };
+    assert.equal(edit(noMethod, id, { amountCents: 5 }).ledger.movements[0]?.method, "Contanti");
+    assert.throws(() => edit(noMethod, id, { method: "Assegno" }), ValidationError);
+  });
+
+  it("rifiuta dati non validi e id inesistenti; non modifica lo stato precedente", () => {
+    const created = add(baseLedger(), "2026-10-16", "Casa", 1_000);
+    const id = created.value.movement.id;
+    const before = serializeLedger(created.ledger);
+    for (const patch of [{ amountCents: 0 }, { amountCents: 1.5 }, { amountCents: 10_000_000_001 }, { date: "2026-02-31" }, { description: "x".repeat(121) }]) {
+      assert.throws(() => edit(created.ledger, id, patch), ValidationError, JSON.stringify(patch));
+    }
+    assert.throws(() => updateMovement(created.ledger, "nope", { date: "2026-10-16", description: "", category: "Casa", method: "Contanti", amountCents: 1 }, deps), ValidationError);
+    assert.equal(serializeLedger(created.ledger), before);
+  });
+
+  it("corregge un fondo e ne ricalcola il periodo", () => {
+    const base = savePeriodParams(createDefaultLedger(), "2026-10", 1_000_000, null, 15).ledger;
+    const fund = addFund(base, { date: "2026-10-20", description: "Bonus", amountCents: 300_00 }, deps);
+    const fixed = updateFund(fund.ledger, fund.value.fund.id, { date: "2026-11-20", description: "Bonus novembre", amountCents: 150_00 });
+    assert.equal(fixed.value.periodKey, "2026-11");
+    assert.equal(computeMetrics(fixed.ledger, "2026-10", TODAY).fundsCents, 0);
+    assert.equal(computeMetrics(fixed.ledger, "2026-11", TODAY).fundsCents, 15_000);
+    assert.equal(fixed.ledger.funds.length, 1);
+    assert.throws(() => updateFund(fund.ledger, "nope", { date: "2026-10-20", description: "", amountCents: 1 }), ValidationError);
+    assert.throws(() => updateFund(fund.ledger, fund.value.fund.id, { date: "2026-10-20", description: "", amountCents: 0 }), ValidationError);
+  });
+});
+
+describe("modifica di categorie e metodi", () => {
+  it("rinomina una categoria e aggiorna i movimenti già registrati, mantenendo l'ordine", () => {
+    let ledger = baseLedger();
+    ledger = add(ledger, "2026-10-16", "Casa", 1_000).ledger;
+    ledger = add(ledger, "2026-10-17", "Svago", 500).ledger;
+    const position = ledger.categories.findIndex((c) => c.name === "Casa");
+    const renamed = updateCategory(ledger, "Casa", "Abitazione", 15_000).ledger;
+    assert.equal(renamed.categories[position]?.name, "Abitazione");
+    assert.equal(renamed.categories[position]?.budgetCents, 15_000);
+    assert.ok(!renamed.categories.some((c) => c.name === "Casa"));
+    assert.deepEqual(renamed.movements.map((m) => m.category), ["Abitazione", "Svago"]);
+    assert.equal(categoryTotals(renamed, "2026-10").get("Abitazione"), 1_000);
+  });
+
+  it("cambia solo il budget senza toccare i movimenti", () => {
+    const ledger = add(baseLedger(), "2026-10-16", "Casa", 1_000).ledger;
+    const changed = updateCategory(ledger, "Casa", "Casa", 99_900);
+    assert.equal(changed.ledger.categories.find((c) => c.name === "Casa")?.budgetCents, 99_900);
+    assert.deepEqual(changed.ledger.movements, ledger.movements);
+  });
+
+  it("rifiuta duplicati, nomi vuoti, budget non validi e categorie inesistenti", () => {
+    const ledger = baseLedger();
+    assert.throws(() => updateCategory(ledger, "Casa", "Svago", 100), ValidationError);
+    assert.throws(() => updateCategory(ledger, "Casa", "   ", 100), ValidationError);
+    assert.throws(() => updateCategory(ledger, "Casa", "Casa", -1), ValidationError);
+    assert.throws(() => updateCategory(ledger, "Casa", "Casa", 1.5), ValidationError);
+    assert.throws(() => updateCategory(ledger, "Nessuna", "X", 100), ValidationError);
+  });
+
+  it("rinomina un metodo e aggiorna i movimenti; rifiuta duplicati", () => {
+    let ledger = baseLedger();
+    ledger = add(ledger, "2026-10-16", "Casa", 1_000).ledger; // metodo «Contanti»
+    const renamed = updateMethod(ledger, "Contanti", "Cash").ledger;
+    assert.ok(renamed.methods.includes("Cash") && !renamed.methods.includes("Contanti"));
+    assert.equal(renamed.movements[0]?.method, "Cash");
+    assert.equal(renamed.methods.indexOf("Cash"), ledger.methods.indexOf("Contanti"));
+    assert.throws(() => updateMethod(ledger, "Contanti", "Bonifico"), ValidationError);
+    assert.throws(() => updateMethod(ledger, "Inesistente", "X"), ValidationError);
+    assert.throws(() => updateMethod(ledger, "Contanti", ""), ValidationError);
+  });
+
+  it("dopo la rinomina si può aggiungere un movimento con il nuovo nome ma non con il vecchio", () => {
+    const renamed = updateCategory(baseLedger(), "Casa", "Abitazione", 10_000).ledger;
+    assert.doesNotThrow(() => add(renamed, "2026-10-16", "Abitazione", 100));
+    assert.throws(() => add(renamed, "2026-10-16", "Casa", 100), ValidationError);
+  });
+});
+
+describe("spese di oggi", () => {
+  it("somma solo le uscite con la data di oggi", () => {
+    let ledger = baseLedger();
+    ledger = add(ledger, "2026-10-24", "Casa", 1_000).ledger;
+    ledger = add(ledger, "2026-10-24", "Svago", 250).ledger;
+    ledger = add(ledger, "2026-10-23", "Casa", 9_999).ledger; // ieri: non conta
+    ledger = addFund(ledger, { date: "2026-10-24", description: "", amountCents: 50_000 }, deps).ledger; // i fondi non sono spese
+    const m = computeMetrics(ledger, "2026-10", TODAY);
+    assert.equal(m.todayInPeriod, true);
+    assert.equal(m.todaySpentCents, 1_250);
+    assert.equal(m.todayMovementCount, 2);
+  });
+
+  it("nessuna spesa oggi: zero", () => {
+    const ledger = add(baseLedger(), "2026-10-20", "Casa", 1_000).ledger;
+    const m = computeMetrics(ledger, "2026-10", TODAY);
+    assert.equal(m.todayInPeriod, true);
+    assert.equal(m.todaySpentCents, 0);
+    assert.equal(m.todayMovementCount, 0);
+  });
+
+  it("se oggi non è nel periodo visualizzato non si applica", () => {
+    const ledger = add(baseLedger(), "2026-10-24", "Casa", 1_000).ledger;
+    for (const key of ["2026-09", "2026-11"]) {
+      const m = computeMetrics(ledger, key, TODAY);
+      assert.equal(m.todayInPeriod, false);
+      assert.equal(m.todaySpentCents, 0);
+    }
+  });
+
+  it("il giorno dello stipendio e il giorno prima cadono in periodi diversi", () => {
+    const ledger = add(baseLedger(), "2026-10-15", "Casa", 700).ledger;
+    assert.equal(computeMetrics(ledger, "2026-10", "2026-10-15").todaySpentCents, 700);
+    assert.equal(computeMetrics(ledger, "2026-10", "2026-10-14").todayInPeriod, false);
+    assert.equal(computeMetrics(ledger, "2026-09", "2026-10-14").todaySpentCents, 0);
   });
 });
 

@@ -145,6 +145,8 @@ export function computeMetrics(ledger: Ledger, key: string, today: string): Peri
     remaining > 0 ? Number(divRound(BigInt(remainingBudgetCents), R)) : null;
 
   const rows = movementsForKey(ledger, key);
+  const todayInPeriod = today >= start && today <= end;
+  const todayRows = todayInPeriod ? rows.filter((m) => m.date === today) : [];
   let top: Movement | null = null;
   for (const m of rows) if (top === null || m.amountCents > top.amountCents) top = m;
 
@@ -171,6 +173,9 @@ export function computeMetrics(ledger: Ledger, key: string, today: string): Peri
     dailyBudgetLeftCents,
     topMovement: top,
     movementCount: rows.length,
+    todayInPeriod,
+    todaySpentCents: todayRows.reduce((sum, m) => sum + m.amountCents, 0),
+    todayMovementCount: todayRows.length,
     overBudget: spentCents > budgetCents,
   };
 }

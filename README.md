@@ -7,7 +7,7 @@ Stack: React 19 + TypeScript (rigoroso) + Vite. Nessun'altra dipendenza a runtim
 
 ## Stato delle verifiche (leggi prima di pubblicare)
 Questo progetto è stato scritto e provato in un ambiente **senza accesso a internet**, quindi `npm install` e `vite build` **non sono stati eseguiti**. Verificato:
-- 41 test della logica (`npm test`) ✔
+- 57 test della logica (`npm test`) ✔
 - Controllo dei tipi (TypeScript, tutte le opzioni rigorose) ✔ — con tipi React semplificati
 - Test end-to-end in Chromium reale (inserimento, fondi, finestre di conferma, persistenza, backup/import, file corrotti, più schede, drag & drop, CSP attiva senza errori) ✔ — con un bundle esbuild equivalente
 
@@ -93,3 +93,12 @@ if (!ok) return;
 - `tone: "danger"` colora la conferma di rosso e parte con il focus su «Annulla».
 - `requireText: "CANCELLA"` richiede di digitare una parola per abilitare l'azione (usato per «Cancella tutti i miei dati»).
 - Restano nativi i controlli di sistema: il selettore di data e i menu a tendina.
+
+## Modifica dei dati (versione 1.4)
+Niente più «elimina e ricrea»: si corregge direttamente.
+- **Movimenti e Fondi**: ✎ sulla riga carica il dato nel modulo in alto («Modifica movimento» / «Modifica versamento»), poi *Salva modifiche* o *Annulla modifica*.
+  Si può cambiare tutto, anche la data (il dato passa al periodo corretto e la vista lo segue). Gli avvisi di superamento budget valgono anche per le modifiche.
+- **Categorie**: clic sulla riga per cambiare nome e budget. Il nuovo nome viene riportato su tutti i movimenti già registrati (`updateCategory`), la posizione resta la stessa e un nome già esistente viene rifiutato (nessuna fusione involontaria).
+- **Metodi di pagamento**: clic sulla riga per rinominarli (`updateMethod`), con lo stesso aggiornamento dei movimenti.
+- Se la categoria/il metodo di un movimento sono stati eliminati, il movimento si può comunque correggere mantenendoli (non vengono persi in silenzio).
+- Le operazioni sono funzioni pure del core (`updateMovement`, `updateFund`, `updateCategory`, `updateMethod`) con rollback se il salvataggio fallisce, come tutte le altre.
