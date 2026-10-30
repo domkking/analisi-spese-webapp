@@ -4,6 +4,7 @@
 
 - I movimenti, le categorie e le impostazioni restano **solo nella memoria del tuo browser** (IndexedDB), su questo dispositivo.
 - Non ci sono account, cookie, strumenti di analisi o tracciamento, né script di terze parti.
+- Nello spazio del sito viene ricordata solo una preferenza dell'interfaccia (quali sezioni della home sono aperte o chiuse): nessun dato personale. Si cancella con «Cancella tutti i miei dati».
 - L'app non effettua richieste di rete per i tuoi dati (la Content-Security-Policy lo impedisce).
 - Il file di backup che esporti è tuo: conservalo in un luogo sicuro, perché contiene i tuoi dati in chiaro.
 - Per cancellare tutto: scheda **Dati → Cancella tutti i miei dati**, oppure cancella i dati del sito dalle impostazioni del browser.

@@ -7,7 +7,7 @@ Stack: React 19 + TypeScript (rigoroso) + Vite. Nessun'altra dipendenza a runtim
 
 ## Stato delle verifiche (leggi prima di pubblicare)
 Questo progetto è stato scritto e provato in un ambiente **senza accesso a internet**, quindi `npm install` e `vite build` **non sono stati eseguiti**. Verificato:
-- 57 test della logica (`npm test`) ✔
+- 61 test della logica (`npm test`) ✔
 - Controllo dei tipi (TypeScript, tutte le opzioni rigorose) ✔ — con tipi React semplificati
 - Test end-to-end in Chromium reale (inserimento, fondi, finestre di conferma, persistenza, backup/import, file corrotti, più schede, drag & drop, CSP attiva senza errori) ✔ — con un bundle esbuild equivalente
 
@@ -102,3 +102,11 @@ Niente più «elimina e ricrea»: si corregge direttamente.
 - **Metodi di pagamento**: clic sulla riga per rinominarli (`updateMethod`), con lo stesso aggiornamento dei movimenti.
 - Se la categoria/il metodo di un movimento sono stati eliminati, il movimento si può comunque correggere mantenendoli (non vengono persi in silenzio).
 - Le operazioni sono funzioni pure del core (`updateMovement`, `updateFund`, `updateCategory`, `updateMethod`) con rollback se il salvataggio fallisce, come tutte le altre.
+
+## Home ottimizzata (versione 1.5)
+Obiettivo: in una schermata di cellulare solo ciò che serve a decidere. Su un periodo con 8 spese la pagina passa da **2.266 px a 1.207 px (−47%)**; su desktop sta in una schermata.
+- **Subito visibili**: *Budget residuo* (con barra, % utilizzata e budget giornaliero), *Spese di oggi*, *Saldo attuale*, *Previsto a fine periodo* e le categorie dove si spende di più (max 5, con spesa > 0; «Mostra tutte» le elenca nell'ordine scelto).
+- **A un tocco** (`Collapsible`, accessibili con `aria-expanded`, tastiera e lettori di schermo): *Dettagli del periodo* (minimo, budget spendibile, fondi, spese del periodo, media giornaliera, spesa più alta), *Distribuzione delle spese* e *Parametri del periodo*. Lo stato aperto/chiuso è ricordato (`state/uiPrefs.ts`, solo «1»/«0» in localStorage) e azzerato da «Cancella tutti i miei dati».
+- **Mai nascosto ciò che è urgente**: budget superato, avviso all'80%, saldo previsto sotto il minimo e budget che superano il saldo restano in primo piano.
+- **Primo avvio**: un invito «Imposta saldo» apre i parametri.
+- Il riepilogo per categoria è logica del core (`categoryOverview`, `pickTopCategories`) con test.

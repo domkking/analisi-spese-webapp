@@ -17,6 +17,7 @@ import {
 import { AppError, createDefaultLedger, todayIso, type Change, type Ledger } from "../core/index.ts";
 import { createStorage, type LedgerStorage } from "../storage/index.ts";
 import { newId } from "./ids.ts";
+import { clearUiPrefs } from "./uiPrefs.ts";
 
 export interface Notice {
   readonly id: number;
@@ -168,6 +169,7 @@ function ReadyProvider({ storage, initialLedger, initialWarnings, children }: Re
     async (): Promise<boolean> =>
       (await enqueue(async () => {
         await storage.clear();
+        clearUiPrefs();
         adopt(createDefaultLedger());
         channel.current?.postMessage("changed");
         return true;

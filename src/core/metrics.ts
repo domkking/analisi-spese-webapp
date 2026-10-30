@@ -1,6 +1,6 @@
 /** Calcoli di sola lettura: spese, saldi riportati, indicatori del periodo. */
 import { DEFAULTS } from "./config.ts";
-import type { Fund, Ledger, Movement, PeriodMetrics } from "./models.ts";
+import type { CategoryRow, Fund, Ledger, Movement, PeriodMetrics } from "./models.ts";
 import { divRound } from "./money.ts";
 import { daysBetween, keyForDate, keyInRange, nextKey, periodBounds, prevKey } from "./periods.ts";
 
@@ -44,6 +44,22 @@ export function categoryTotals(ledger: Ledger, key: string): Map<string, number>
     totals.set(m.category, (totals.get(m.category) ?? 0) + m.amountCents);
   }
   return totals;
+}
+
+/** Tutte le categorie con la spesa del periodo (nell'ordine scelto dall'utente), più quelle senza budget che hanno movimenti. */
+export function categoryOverview(ledger: Ledger, key: string): CategoryRow[] {
+  const totals = categoryTotals(ledger, key);
+  const budgeted = new Set(ledger.categories.map((c) => c.name));
+  return [
+    ...ledger.categories.map((c) => ({ name: c.name, budgetCents: c.budgetCents as number | null, spentCents: totals.get(c.name) ?? 0 })),
+    ...[...totals.keys()].filter((name) => !budgeted.has(name)).map((name) => ({ name, budgetCents: null, spentCents: totals.get(name) ?? 0 })),
+  ];
+}
+
+/** Le categorie dove si è speso di più (solo con spesa > 0), per la vista sintetica della home. */
+export function pickTopCategories(rows: readonly CategoryRow[], limit: number): { shown: CategoryRow[]; hiddenCount: number } {
+  const shown = rows.filter((r) => r.spentCents > 0).sort((a, b) => b.spentCents - a.spentCents).slice(0, limit);
+  return { shown, hiddenCount: rows.length - shown.length };
 }
 
 export function totalCategoryBudget(ledger: Ledger): number {

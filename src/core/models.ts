@@ -66,6 +66,13 @@ export interface AddFundOutcome {
   readonly periodKey: string;
 }
 
+/** Una riga del riepilogo per categoria (budgetCents = null se la categoria non ha più un budget). */
+export interface CategoryRow {
+  readonly name: string;
+  readonly budgetCents: number | null;
+  readonly spentCents: number;
+}
+
 export interface CategoryAlert {
   readonly category: string;
   readonly spentCents: number;

@@ -201,3 +201,40 @@ body:has(dialog[open]) { overflow: hidden; }
 tbody tr.editing { outline: 2px solid var(--accent); outline-offset: -2px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .sortable-row.selected .row-main span:first-child { font-weight: 700; }
+
+/* ---- home ottimizzata ---- */
+.dashboard { display: grid; gap: 12px; }
+.dashboard .card, .dashboard .banner { margin: 0; }
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.dash-main { display: grid; gap: 12px; }
+.hero { padding: 20px 22px; }
+.hero-value { font-size: 40px; font-weight: 800; line-height: 1.1; margin: 4px 0 2px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hero-sub { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+.hero .progress { margin-bottom: 0; height: 12px; }
+.hero-foot { margin-top: 10px; font-size: 14px; font-weight: 600; }
+.quick-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.quick-kpis .kpi { padding: 12px 14px; }
+.quick-kpis .kpi-value { font-size: 18px; }
+.show-all { margin-top: 12px; }
+.banner-info { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--accent-soft); color: var(--accent); }
+.collapsible { padding: 0; }
+.collapsible-title { margin: 0; font-size: 15px; }
+.collapsible-toggle { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; text-align: left; background: transparent; border: 0; padding: 14px 20px; border-radius: var(--radius); font-weight: 700; font-size: 15px; }
+.collapsible-toggle:hover { background: var(--soft); }
+.collapsible-toggle .chevron { grid-column: 2; grid-row: 1; color: var(--muted); font-size: 11px; }
+.collapsible-summary { grid-column: 1; font-size: 12px; color: var(--muted); font-weight: 500; }
+.collapsible-body { padding: 0 20px 18px; }
+.collapsible-body .kpis { margin-bottom: 0; }
+.collapsible-body .kpi { background: var(--soft); border-color: transparent; }
+@media (max-width: 960px) {
+  .dash-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .dashboard { gap: 10px; }
+  .hero { padding: 16px 16px; }
+  .hero-value { font-size: 34px; }
+  .quick-kpis { grid-template-columns: 1fr 1fr; }
+  .quick-kpis > :last-child { grid-column: 1 / -1; }
+  .collapsible-toggle { padding: 13px 16px; }
+  .collapsible-body { padding: 0 16px 16px; }
+}

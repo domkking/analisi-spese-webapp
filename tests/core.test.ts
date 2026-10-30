@@ -7,6 +7,7 @@ import {
   addMethod,
   addMovement,
   AppError,
+  categoryOverview,
   categoryTotals,
   centsToDecimalString,
   cleanText,
@@ -26,6 +27,7 @@ import {
   ledgerFromJson,
   parseAmount,
   parseBackup,
+  pickTopCategories,
   plural,
   parseIsoDate,
   periodBounds,
@@ -317,6 +319,47 @@ describe("modifica di categorie e metodi", () => {
     const renamed = updateCategory(baseLedger(), "Casa", "Abitazione", 10_000).ledger;
     assert.doesNotThrow(() => add(renamed, "2026-10-16", "Abitazione", 100));
     assert.throws(() => add(renamed, "2026-10-16", "Casa", 100), ValidationError);
+  });
+});
+
+describe("riepilogo per categoria", () => {
+  it("elenca tutte le categorie nell'ordine dell'utente più quelle senza budget con movimenti", () => {
+    let ledger = baseLedger();
+    ledger = add(ledger, "2026-10-16", "Casa", 1_000).ledger;
+    ledger = add(ledger, "2026-10-17", "Altro", 300).ledger;
+    ledger = deleteCategory(ledger, "Altro").ledger; // «Altro» resta sui movimenti ma senza budget
+    const rows = categoryOverview(ledger, "2026-10");
+    assert.deepEqual(rows.slice(0, ledger.categories.length).map((r) => r.name), ledger.categories.map((c) => c.name));
+    assert.equal(rows.find((r) => r.name === "Casa")?.spentCents, 1_000);
+    assert.equal(rows.find((r) => r.name === "Trasporti")?.spentCents, 0);
+    const orphan = rows.at(-1);
+    assert.deepEqual([orphan?.name, orphan?.budgetCents, orphan?.spentCents], ["Altro", null, 300]);
+  });
+
+  it("la vista sintetica mostra solo le categorie con spesa, dalla più alta, entro il limite", () => {
+    let ledger = baseLedger();
+    for (const [cat, cents] of [["Casa", 500], ["Svago", 900], ["Salute", 100], ["Trasporti", 700], ["Alimentari", 300], ["Altro", 200]] as const) {
+      ledger = add(ledger, "2026-10-16", cat, cents).ledger;
+    }
+    const rows = categoryOverview(ledger, "2026-10");
+    const top = pickTopCategories(rows, 3);
+    assert.deepEqual(top.shown.map((r) => r.name), ["Svago", "Trasporti", "Casa"]);
+    assert.equal(top.hiddenCount, rows.length - 3);
+    assert.equal(pickTopCategories(rows, 20).shown.length, 6); // mai le categorie a zero
+  });
+
+  it("senza spese la vista sintetica è vuota ma le categorie restano disponibili", () => {
+    const rows = categoryOverview(baseLedger(), "2026-10");
+    const top = pickTopCategories(rows, 5);
+    assert.equal(top.shown.length, 0);
+    assert.equal(top.hiddenCount, rows.length);
+  });
+
+  it("non modifica l'elenco ricevuto", () => {
+    const rows = categoryOverview(add(baseLedger(), "2026-10-16", "Svago", 100).ledger, "2026-10");
+    const names = rows.map((r) => r.name);
+    pickTopCategories(rows, 2);
+    assert.deepEqual(rows.map((r) => r.name), names);
   });
 });
 

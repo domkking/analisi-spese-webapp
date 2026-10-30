@@ -49,6 +49,13 @@ export function Help() {
 
       <h3>5. Leggi la Dashboard</h3>
       <ul>
+        <li>
+          In alto trovi l'essenziale: budget residuo (con quanto puoi spendere al giorno), spese di oggi, saldo attuale e saldo previsto a fine periodo.
+        </li>
+        <li>
+          «Dettagli del periodo», il grafico e i «Parametri del periodo» si aprono con un tocco; l'app ricorda quali sezioni lasci aperte. Per le categorie vedi
+          dove stai spendendo di più, e «Mostra tutte le categorie» le elenca tutte.
+        </li>
         <li>Saldo attuale = saldo iniziale + fondi − spese registrate.</li>
         <li>Spese di oggi = somma dei movimenti con la data di oggi (compare solo se oggi cade nel periodo che stai guardando).</li>
         <li>Saldo previsto = saldo attuale − (spesa media giornaliera × giorni rimasti).</li>
