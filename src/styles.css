@@ -118,7 +118,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .table-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .table-head .section-title { margin: 0; }
 .pill { margin-left: auto; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 5px 14px; font-weight: 700; font-size: 13px; }
-.table-wrap { overflow-x: auto; border-radius: 10px; }
+.table-wrap { position: relative; overflow-x: auto; border-radius: 10px; } /* position: contiene gli elementi assoluti (es. testo nascosto per i lettori di schermo) dentro il riquadro scorrevole */
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; background: var(--bg); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; padding: 10px 12px; white-space: nowrap; }
 td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
@@ -237,4 +237,24 @@ tbody tr.editing { outline: 2px solid var(--accent); outline-offset: -2px; }
   .quick-kpis > :last-child { grid-column: 1 / -1; }
   .collapsible-toggle { padding: 13px 16px; }
   .collapsible-body { padding: 0 16px 16px; }
+}
+
+/* ---- robustezza su schermi stretti: nessun contenuto deve allargare la pagina ---- */
+.kpi, .card, .field, .cat-head > *, .row-main > * { min-width: 0; }
+.kpi-value { font-size: clamp(16px, 5.4vw, 21px); white-space: normal; overflow-wrap: anywhere; }
+.hero-value { font-size: clamp(26px, 9.5vw, 40px); white-space: normal; overflow-wrap: anywhere; }
+.hero-sub, .hero-foot, .kpi-sub, .collapsible-summary, .modal-message, .toast span { overflow-wrap: anywhere; }
+.cat-head { flex-wrap: wrap; }
+.row-main { min-width: 0; overflow-wrap: anywhere; }
+.pill { white-space: nowrap; }
+.donut { max-width: 100%; }
+.donut svg { max-width: 100%; height: auto; }
+.legend li { overflow-wrap: anywhere; }
+@media (max-width: 960px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .period-label { min-width: 0; flex: 1; }
+  .period-nav { flex-wrap: wrap; justify-content: flex-end; }
+  .quick-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

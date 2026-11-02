@@ -110,3 +110,10 @@ Obiettivo: in una schermata di cellulare solo ciò che serve a decidere. Su un p
 - **Mai nascosto ciò che è urgente**: budget superato, avviso all'80%, saldo previsto sotto il minimo e budget che superano il saldo restano in primo piano.
 - **Primo avvio**: un invito «Imposta saldo» apre i parametri.
 - Il riepilogo per categoria è logica del core (`categoryOverview`, `pickTopCategories`) con test.
+
+## Correzione del layout su cellulare (versione 1.5.1)
+**Sintomo**: aprendo la scheda *Movimenti* (o *Fondi*) con dei dati, su cellulare la pagina si rimpiccioliva.
+**Causa**: il testo nascosto «Azioni» (per i lettori di schermo) nell'intestazione dell'ultima colonna della tabella era posizionato in modo assoluto rispetto alla *pagina* e non alla tabella: sfuggiva al riquadro scorrevole e finiva fuori dallo schermo (a ~588 px su uno schermo da 390 px). Il browser mobile, per mostrare tutto, allargava la pagina e la riduceva di scala.
+**Correzione**: `.table-wrap { position: relative }` contiene gli elementi assoluti dentro il riquadro. In più, importi e testi lunghi nelle caselle ora si riducono/vanno a capo invece di allargare la pagina (`min-width: 0`, `overflow-wrap`, `clamp()`).
+**Regola per il futuro**: un elemento con `position: absolute` deve sempre avere un antenato con `position: relative` dentro il proprio contenitore scorrevole; i contenuti con testo/importi lunghi devono poter andare a capo.
+**Verifica**: controllo su tutte le schede e stati (riga selezionata, modifica, finestra di conferma, sezioni aperte) a 320, 360 e 390 px con dati lunghi: larghezza della pagina = larghezza dello schermo, scala 1, nessun elemento fuori dallo schermo.
