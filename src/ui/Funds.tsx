@@ -16,6 +16,7 @@ import {
 import { useApp } from "../state/AppContext.tsx";
 import { useConfirm } from "./components/Confirm.tsx";
 import { Field } from "./components/Field.tsx";
+import { RecordList } from "./components/RecordList.tsx";
 
 interface Props {
   periodKey: string;
@@ -118,14 +119,16 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
         <Field label="Importo (€)" className="narrow">
           <input inputMode="decimal" placeholder="0,00" required value={amount} onChange={(e) => setAmount(e.target.value)} autoComplete="off" />
         </Field>
-        <button type="submit" className="primary">
-          {editing ? "Salva modifiche" : "+ Aggiungi fondi"}
-        </button>
-        {editing && (
-          <button type="button" className="ghost cancel-edit" onClick={resetForm}>
-            Annulla modifica
+        <div className="form-actions">
+          <button type="submit" className="primary">
+            {editing ? "Salva modifiche" : "+ Aggiungi fondi"}
           </button>
-        )}
+          {editing && (
+            <button type="button" className="ghost cancel-edit" onClick={resetForm}>
+              Annulla modifica
+            </button>
+          )}
+        </div>
         <p className="muted params-note">
           I fondi aumentano il saldo del periodo in cui cadono. Con il minimo <strong>automatico</strong> il minimo sale dello stesso importo (il budget non cambia):
           per spendere i fondi aumenta i budget delle categorie. Con il minimo <strong>manuale</strong> aumentano invece il budget spendibile.
@@ -141,45 +144,26 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
         {rows.length === 0 ? (
           <p className="muted">Nessun fondo aggiunto in questo periodo.</p>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th className="check">
-                    <input
-                      type="checkbox"
-                      aria-label="Seleziona tutti"
-                      checked={allSelected}
-                      onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((f) => f.id)))}
-                    />
-                  </th>
-                  <th>Data</th>
-                  <th>Descrizione</th>
-                  <th className="num">Importo</th>
-                  <th className="check">
-                    <span className="visually-hidden">Azioni</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((f) => (
-                  <tr key={f.id} className={`${selected.has(f.id) ? "selected" : ""}${editing?.id === f.id ? " editing" : ""}`.trim()}>
-                    <td className="check">
-                      <input type="checkbox" aria-label={`Seleziona ${f.description || "versamento"}`} checked={selected.has(f.id)} onChange={() => toggle(f.id)} />
-                    </td>
-                    <td>{formatDateIt(f.date)}</td>
-                    <td>{f.description}</td>
-                    <td className="num">+{formatEur(f.amountCents)}</td>
-                    <td className="check">
-                      <button type="button" className="icon-btn" aria-label={`Modifica ${f.description || "versamento"}`} title="Modifica" onClick={() => startEdit(f)}>
-                        ✎
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <RecordList
+            columns={[{ title: "Data" }, { title: "Descrizione" }, { title: "Importo", numeric: true }]}
+            rows={rows.map((f) => ({
+              id: f.id,
+              cells: [formatDateIt(f.date), f.description, `+${formatEur(f.amountCents)}`],
+              title: f.description || "Versamento",
+              meta: formatDateIt(f.date),
+              amount: `+${formatEur(f.amountCents)}`,
+              selectLabel: `Seleziona ${f.description || "versamento"}`,
+              editLabel: `Modifica ${f.description || "versamento"}`,
+            }))}
+            selected={selected}
+            editingId={editing?.id ?? null}
+            onToggle={toggle}
+            onToggleAll={() => setSelected(allSelected ? new Set() : new Set(rows.map((f) => f.id)))}
+            onEdit={(id) => {
+              const found = rows.find((f) => f.id === id);
+              if (found) startEdit(found);
+            }}
+          />
         )}
         <div className="table-foot">
           <span className="muted">Seleziona una o più righe per eliminarle, oppure ✎ per correggerle</span>

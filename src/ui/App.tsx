@@ -12,13 +12,13 @@ import { Transactions } from "./Transactions.tsx";
 
 type TabId = "dashboard" | "movimenti" | "fondi" | "categorie" | "dati" | "istruzioni";
 
-const TABS: readonly { id: TabId; label: string }[] = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "movimenti", label: "Movimenti" },
-  { id: "fondi", label: "Fondi" },
-  { id: "categorie", label: "Categorie & Budget" },
-  { id: "dati", label: "Dati" },
-  { id: "istruzioni", label: "Istruzioni" },
+const TABS: readonly { id: TabId; label: string; short: string }[] = [
+  { id: "dashboard", label: "Dashboard", short: "Home" },
+  { id: "movimenti", label: "Movimenti", short: "Movimenti" },
+  { id: "fondi", label: "Fondi", short: "Fondi" },
+  { id: "categorie", label: "Categorie & Budget", short: "Categorie" },
+  { id: "dati", label: "Dati", short: "Dati" },
+  { id: "istruzioni", label: "Istruzioni", short: "Guida" },
 ];
 
 export function App() {
@@ -55,12 +55,16 @@ export function App() {
             type="button"
             role="tab"
             id={`tab-${t.id}`}
+            aria-label={t.label}
             aria-selected={tab === t.id}
             aria-controls={`panel-${t.id}`}
             className={tab === t.id ? "active" : ""}
             onClick={() => setTab(t.id)}
           >
-            {t.label}
+            <span className="tab-full">{t.label}</span>
+            <span className="tab-short" aria-hidden="true">
+              {t.short}
+            </span>
           </button>
         ))}
       </nav>

@@ -117,3 +117,15 @@ Obiettivo: in una schermata di cellulare solo ciò che serve a decidere. Su un p
 **Correzione**: `.table-wrap { position: relative }` contiene gli elementi assoluti dentro il riquadro. In più, importi e testi lunghi nelle caselle ora si riducono/vanno a capo invece di allargare la pagina (`min-width: 0`, `overflow-wrap`, `clamp()`).
 **Regola per il futuro**: un elemento con `position: absolute` deve sempre avere un antenato con `position: relative` dentro il proprio contenitore scorrevole; i contenuti con testo/importi lunghi devono poter andare a capo.
 **Verifica**: controllo su tutte le schede e stati (riga selezionata, modifica, finestra di conferma, sezioni aperte) a 320, 360 e 390 px con dati lunghi: larghezza della pagina = larghezza dello schermo, scala 1, nessun elemento fuori dallo schermo.
+
+## Rifiniture grafiche (versione 1.6)
+**Sezioni comprimibili** (`Collapsible`): linea di separazione e spazio sopra il contenuto; da aperta l'intestazione ha solo gli angoli alti arrotondati (l'evidenziazione non «sborda» sulle caselle); l'anello di focus sta dentro la scheda. Le sei caselle dei dettagli sono 3 per riga (2 su cellulare).
+**Colori e contrasto** (temi chiaro e scuro): `--btn`/`--btn-hover` per i pulsanti pieni e la scheda attiva (testo bianco ≥ 6:1 in entrambi i temi); banner di stato con colori dedicati al tema scuro (prima restavano pastello chiaro); pulsanti secondari con bordo e sfondo propri.
+**Cellulare**
+- Movimenti e fondi diventano **schede** (`RecordList`): descrizione e importo in evidenza, data/categoria/metodo sotto, ✎ sempre visibile; niente scorrimento orizzontale. Su schermi larghi resta la tabella.
+- Barra delle schede con **tutte e 6 le voci visibili** (etichette brevi: Home, Categorie, Guida; il nome accessibile resta quello completo).
+- Campi a **16 px**: evita lo zoom automatico di iPhone quando si tocca un campo.
+- Pulsanti dei moduli affiancati e a tutta larghezza; aree toccabili ≥ 40 px sui dispositivi touch; margini per notch e barra di sistema (`env(safe-area-inset-*)`).
+- Elenchi di categorie e metodi: l'importo sta sotto il nome, i nomi non si spezzano a metà parola, la maniglia di trascinamento sparisce su touch (restano ▲▼).
+**Regole del progetto**: nessun colore di stato scritto «a mano» fuori dai token; ogni pulsante pieno usa `--btn`; ogni elenco con importi deve avere una vista a schede sotto i 640 px.
+**Verifica**: contrasto dei colori misurato in entrambi i temi, geometria delle sezioni, schede a 320/360/390 px, assenza di sovrapposizioni e di allargamenti della pagina.

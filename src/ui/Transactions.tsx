@@ -16,6 +16,7 @@ import {
 import { useApp } from "../state/AppContext.tsx";
 import { useConfirm } from "./components/Confirm.tsx";
 import { Field } from "./components/Field.tsx";
+import { RecordList } from "./components/RecordList.tsx";
 
 interface Props {
   periodKey: string;
@@ -149,14 +150,16 @@ export function Transactions({ periodKey, onPeriodChange }: Props) {
         <Field label="Importo (€)" className="narrow">
           <input inputMode="decimal" placeholder="0,00" required value={amount} onChange={(e) => setAmount(e.target.value)} autoComplete="off" />
         </Field>
-        <button type="submit" className="primary">
-          {editing ? "Salva modifiche" : "+ Aggiungi"}
-        </button>
-        {editing && (
-          <button type="button" className="ghost cancel-edit" onClick={resetForm}>
-            Annulla modifica
+        <div className="form-actions">
+          <button type="submit" className="primary">
+            {editing ? "Salva modifiche" : "+ Aggiungi"}
           </button>
-        )}
+          {editing && (
+            <button type="button" className="ghost cancel-edit" onClick={resetForm}>
+              Annulla modifica
+            </button>
+          )}
+        </div>
       </form>
 
       <div className="card">
@@ -168,49 +171,26 @@ export function Transactions({ periodKey, onPeriodChange }: Props) {
         {rows.length === 0 ? (
           <p className="muted">Nessun movimento in questo periodo.</p>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th className="check">
-                    <input
-                      type="checkbox"
-                      aria-label="Seleziona tutti"
-                      checked={allSelected}
-                      onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((m) => m.id)))}
-                    />
-                  </th>
-                  <th>Data</th>
-                  <th>Descrizione</th>
-                  <th>Categoria</th>
-                  <th>Metodo</th>
-                  <th className="num">Importo</th>
-                  <th className="check">
-                    <span className="visually-hidden">Azioni</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((m) => (
-                  <tr key={m.id} className={`${selected.has(m.id) ? "selected" : ""}${editing?.id === m.id ? " editing" : ""}`.trim()}>
-                    <td className="check">
-                      <input type="checkbox" aria-label={`Seleziona ${m.description || m.category}`} checked={selected.has(m.id)} onChange={() => toggle(m.id)} />
-                    </td>
-                    <td>{formatDateIt(m.date)}</td>
-                    <td>{m.description}</td>
-                    <td>{m.category}</td>
-                    <td>{m.method}</td>
-                    <td className="num">{formatEur(m.amountCents)}</td>
-                    <td className="check">
-                      <button type="button" className="icon-btn" aria-label={`Modifica ${m.description || m.category}`} title="Modifica" onClick={() => startEdit(m)}>
-                        ✎
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <RecordList
+            columns={[{ title: "Data" }, { title: "Descrizione" }, { title: "Categoria" }, { title: "Metodo" }, { title: "Importo", numeric: true }]}
+            rows={rows.map((m) => ({
+              id: m.id,
+              cells: [formatDateIt(m.date), m.description, m.category, m.method, formatEur(m.amountCents)],
+              title: m.description || m.category,
+              meta: `${formatDateIt(m.date)} · ${m.category} · ${m.method}`,
+              amount: formatEur(m.amountCents),
+              selectLabel: `Seleziona ${m.description || m.category}`,
+              editLabel: `Modifica ${m.description || m.category}`,
+            }))}
+            selected={selected}
+            editingId={editing?.id ?? null}
+            onToggle={toggle}
+            onToggleAll={() => setSelected(allSelected ? new Set() : new Set(rows.map((m) => m.id)))}
+            onEdit={(id) => {
+              const found = rows.find((m) => m.id === id);
+              if (found) startEdit(found);
+            }}
+          />
         )}
         <div className="table-foot">
           <span className="muted">Seleziona una o più righe per eliminarle, oppure ✎ per correggerle</span>

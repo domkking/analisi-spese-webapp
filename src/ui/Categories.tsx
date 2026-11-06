@@ -142,14 +142,16 @@ export function Categories() {
           <Field label="Budget (€)" className="narrow">
             <input inputMode="decimal" required placeholder="0,00" value={budget} onChange={(e) => setBudget(e.target.value)} autoComplete="off" />
           </Field>
-          <button type="submit" className="primary">
-            {editingCategory !== null ? "Salva modifiche" : "Salva"}
-          </button>
-          {editingCategory !== null && (
-            <button type="button" className="ghost cancel-edit" onClick={resetCategoryForm}>
-              Annulla
+          <div className="form-actions">
+            <button type="submit" className="primary">
+              {editingCategory !== null ? "Salva modifiche" : "Salva"}
             </button>
-          )}
+            {editingCategory !== null && (
+              <button type="button" className="ghost cancel-edit" onClick={resetCategoryForm}>
+                Annulla
+              </button>
+            )}
+          </div>
         </form>
       </div>
 
@@ -181,14 +183,16 @@ export function Categories() {
           <Field label="Nome del metodo" className="grow">
             <input maxLength={40} required placeholder="Es. Satispay" value={method} onChange={(e) => setMethod(e.target.value)} autoComplete="off" />
           </Field>
-          <button type="submit" className="primary">
-            {editingMethod !== null ? "Salva modifiche" : "Aggiungi"}
-          </button>
-          {editingMethod !== null && (
-            <button type="button" className="ghost cancel-edit" onClick={resetMethodForm}>
-              Annulla
+          <div className="form-actions">
+            <button type="submit" className="primary">
+              {editingMethod !== null ? "Salva modifiche" : "Aggiungi"}
             </button>
-          )}
+            {editingMethod !== null && (
+              <button type="button" className="ghost cancel-edit" onClick={resetMethodForm}>
+                Annulla
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </section>
