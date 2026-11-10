@@ -331,3 +331,6 @@ input[type="date"] { min-height: 40px; }
 @media (hover: none) and (pointer: coarse) {
   .grip { display: none; }
 }
+
+.cat-note { font-size: 12px; margin-top: 2px; }
+.donut-note { text-align: center; margin-top: 10px; }

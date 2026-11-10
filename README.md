@@ -7,7 +7,7 @@ Stack: React 19 + TypeScript (rigoroso) + Vite. Nessun'altra dipendenza a runtim
 
 ## Stato delle verifiche (leggi prima di pubblicare)
 Questo progetto è stato scritto e provato in un ambiente **senza accesso a internet**, quindi `npm install` e `vite build` **non sono stati eseguiti**. Verificato:
-- 61 test della logica (`npm test`) ✔
+- 71 test della logica (`npm test`) ✔
 - Controllo dei tipi (TypeScript, tutte le opzioni rigorose) ✔ — con tipi React semplificati
 - Test end-to-end in Chromium reale (inserimento, fondi, finestre di conferma, persistenza, backup/import, file corrotti, più schede, drag & drop, CSP attiva senza errori) ✔ — con un bundle esbuild equivalente
 
@@ -129,3 +129,11 @@ Obiettivo: in una schermata di cellulare solo ciò che serve a decidere. Su un p
 - Elenchi di categorie e metodi: l'importo sta sotto il nome, i nomi non si spezzano a metà parola, la maniglia di trascinamento sparisce su touch (restano ▲▼).
 **Regole del progetto**: nessun colore di stato scritto «a mano» fuori dai token; ogni pulsante pieno usa `--btn`; ogni elenco con importi deve avere una vista a schede sotto i 640 px.
 **Verifica**: contrasto dei colori misurato in entrambi i temi, geometria delle sezioni, schede a 320/360/390 px, assenza di sovrapposizioni e di allargamenti della pagina.
+
+## Fondi con categoria (versione 1.7)
+Nel modulo *Fondi* si può scegliere una **categoria** oppure **«Nessuna categoria»** (predefinita: un normale versamento, nessun riepilogo per categoria cambia).
+- Con una categoria (es. un rimborso sanitario in «Salute») l'importo viene **scalato dalla spesa di quella categoria**: la spesa mostrata è *netta* (`movimenti − fondi`) in «Dove stai spendendo», nel grafico e negli avvisi di superamento della categoria. Il pannello indica «al netto di X € di fondi», il grafico riporta la nota e un netto negativo (rimborso > spese) si vede nel pannello ma non nel grafico.
+- **I totali del periodo non cambiano** con la categoria (saldo, minimo, budget, «Spese del periodo» restano quelli di prima): la categoria incide solo sui riepiloghi per categoria.
+- Rinominando una categoria il fondo la segue; eliminandola il fondo torna «senza categoria» (i movimenti conservano il nome come storico).
+- Formato file versione 4: la chiave `categoria` compare nei fondi solo se assegnata; i file senza (versioni precedenti, app desktop) si importano normalmente, e una categoria inesistente nel file diventa «senza categoria».
+- Core: `categoryFunds`, `categoryTotals` (ora netta), `categoryOverview` (con `fundsCents`), `addFund/updateFund` con `category`, tutti con test.

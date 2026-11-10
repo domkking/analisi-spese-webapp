@@ -134,15 +134,23 @@ export function deleteMovements(ledger: Ledger, ids: Iterable<string>): Change<n
 }
 
 // ---------------------------------------------------------------------- fondi
+/** Categoria del fondo: assente/null/«» = nessuna; altrimenti deve esistere (o restare quella già registrata). */
+function resolveFundCategory(ledger: Ledger, value: string | null | undefined, current: string | null): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  if (value === current || ledger.categories.some((c) => c.name === value)) return value;
+  throw new ValidationError("Seleziona una categoria esistente, oppure «Nessuna categoria».");
+}
+
 export function addFund(ledger: Ledger, input: AddFundInput, deps: Deps): Change<AddFundOutcome> {
   const date = parseIsoDate(input.date);
+  const category = resolveFundCategory(ledger, input.category, null);
   const description = cleanText(input.description, "Descrizione", LIMITS.maxDescriptionLength, true);
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
     throw new ValidationError("L'importo deve essere maggiore di zero.");
   }
   if (input.amountCents > LIMITS.maxAmountCents) throw new ValidationError("Importo troppo grande.");
   if (ledger.funds.length >= LIMITS.maxFunds) throw new ValidationError("Raggiunto il numero massimo di fondi.");
-  const fund: Fund = { id: deps.newId(), date, description, amountCents: input.amountCents };
+  const fund: Fund = { id: deps.newId(), date, description, amountCents: input.amountCents, category };
   return {
     ledger: { ...ledger, funds: [...ledger.funds, fund] },
     value: { fund, periodKey: keyForDate(date, ledger.payDay) },
@@ -150,14 +158,16 @@ export function addFund(ledger: Ledger, input: AddFundInput, deps: Deps): Change
 }
 
 export function updateFund(ledger: Ledger, id: string, input: AddFundInput): Change<AddFundOutcome> {
-  if (!ledger.funds.some((f) => f.id === id)) throw new ValidationError("Fondo non trovato.");
+  const existing = ledger.funds.find((f) => f.id === id);
+  if (!existing) throw new ValidationError("Fondo non trovato.");
   const date = parseIsoDate(input.date);
+  const category = resolveFundCategory(ledger, input.category, existing.category);
   const description = cleanText(input.description, "Descrizione", LIMITS.maxDescriptionLength, true);
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
     throw new ValidationError("L'importo deve essere maggiore di zero.");
   }
   if (input.amountCents > LIMITS.maxAmountCents) throw new ValidationError("Importo troppo grande.");
-  const fund: Fund = { id, date, description, amountCents: input.amountCents };
+  const fund: Fund = { id, date, description, amountCents: input.amountCents, category };
   return {
     ledger: { ...ledger, funds: ledger.funds.map((f) => (f.id === id ? fund : f)) },
     value: { fund, periodKey: keyForDate(date, ledger.payDay) },
@@ -224,12 +234,18 @@ export function updateCategory(ledger: Ledger, oldName: string, newName: string,
     ...ledger,
     categories: ledger.categories.map((c) => (c.name === oldName ? { name, budgetCents } : c)),
     movements: name === oldName ? ledger.movements : ledger.movements.map((m) => (m.category === oldName ? { ...m, category: name } : m)),
+    funds: name === oldName ? ledger.funds : ledger.funds.map((f) => (f.category === oldName ? { ...f, category: name } : f)),
   });
 }
 
 export function deleteCategory(ledger: Ledger, name: string): Change<void> {
   if (!ledger.categories.some((c) => c.name === name)) throw new ValidationError("Categoria inesistente.");
-  return done({ ...ledger, categories: ledger.categories.filter((c) => c.name !== name) });
+  return done({
+    ...ledger,
+    categories: ledger.categories.filter((c) => c.name !== name),
+    // i fondi assegnati alla categoria eliminata tornano «senza categoria» (i movimenti conservano il nome, come storico)
+    funds: ledger.funds.map((f) => (f.category === name ? { ...f, category: null } : f)),
+  });
 }
 
 export function reorderCategories(ledger: Ledger, order: readonly string[]): Change<void> {

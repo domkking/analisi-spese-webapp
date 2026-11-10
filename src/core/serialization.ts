@@ -58,6 +58,7 @@ export function ledgerToJson(ledger: Ledger): Record<string, unknown> {
       data: f.date,
       descrizione: f.description,
       importo: centsToDecimalString(f.amountCents),
+      ...(f.category !== null && { categoria: f.category }),
     })),
   };
 }
@@ -140,11 +141,13 @@ function parseFunds(raw: unknown, newId: () => string): Fund[] {
     seen.add(id);
     const amountCents = jsonToCents(own(row, "importo"));
     if (amountCents <= 0) throw new ValidationError("File dati non valido: importo di un fondo non positivo.");
+    const rawCategory = own(row, "categoria");
     funds.push({
       id,
       date: parseIsoDate(own(row, "data")),
       description: cleanText(own(row, "descrizione") ?? "", "Descrizione", LIMITS.maxDescriptionLength, true),
       amountCents,
+      category: rawCategory === undefined || rawCategory === null ? null : cleanText(rawCategory, "Categoria", LIMITS.maxNameLength, true) || null,
     });
   }
   return funds;
@@ -159,13 +162,16 @@ export function ledgerFromJson(raw: unknown, newId: () => string): Ledger {
   const overrides = own(data, "mesi");
   const movements = own(data, "movimenti");
   const funds = own(data, "fondi");
+  const parsedCategories = categories === undefined ? base.categories : parseCategories(categories);
+  const known = new Set(parsedCategories.map((c) => c.name));
   return {
     payDay: payDay === undefined ? DEFAULTS.payDay : parsePayDay(payDay),
-    categories: categories === undefined ? base.categories : parseCategories(categories),
+    categories: parsedCategories,
     methods: methods === undefined ? base.methods : parseMethods(methods),
     overrides: overrides === undefined ? {} : parseOverrides(overrides),
     movements: movements === undefined ? [] : parseMovements(movements, newId),
-    funds: funds === undefined ? [] : parseFunds(funds, newId),
+    // un fondo assegnato a una categoria che non esiste più (file modificato a mano) diventa «senza categoria»
+    funds: funds === undefined ? [] : parseFunds(funds, newId).map((f) => (f.category !== null && !known.has(f.category) ? { ...f, category: null } : f)),
   };
 }
 

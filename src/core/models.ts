@@ -17,6 +17,8 @@ export interface Fund {
   readonly date: string;
   readonly description: string;
   readonly amountCents: number;
+  /** Categoria a cui il fondo è assegnato (es. un rimborso): viene scalato dalla spesa di quella categoria. null = nessuna. */
+  readonly category: string | null;
 }
 
 export interface CategoryBudget {
@@ -59,6 +61,8 @@ export interface AddFundInput {
   readonly date: string;
   readonly description: string;
   readonly amountCents: number;
+  /** Categoria esistente, oppure null/assente/«» per «Nessuna categoria». */
+  readonly category?: string | null | undefined;
 }
 
 export interface AddFundOutcome {
@@ -70,7 +74,10 @@ export interface AddFundOutcome {
 export interface CategoryRow {
   readonly name: string;
   readonly budgetCents: number | null;
+  /** Spesa NETTA della categoria nel periodo: movimenti − fondi assegnati alla categoria (può essere negativa). */
   readonly spentCents: number;
+  /** Fondi assegnati alla categoria nel periodo. */
+  readonly fundsCents: number;
 }
 
 export interface CategoryAlert {

@@ -1,5 +1,5 @@
 /** Costanti centrali: limiti di sicurezza e valori predefiniti. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const LIMITS = {
   maxBackupChars: 20_000_000,

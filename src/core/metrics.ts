@@ -38,10 +38,23 @@ export function fundsForKey(ledger: Ledger, key: string): Fund[] {
     .sort((a, b) => (a.date === b.date ? (a.id < b.id ? 1 : -1) : a.date < b.date ? 1 : -1));
 }
 
+/** Fondi del periodo assegnati a una categoria (rimborsi/recuperi), per categoria. */
+export function categoryFunds(ledger: Ledger, key: string): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const f of fundsForKey(ledger, key)) {
+    if (f.category !== null) totals.set(f.category, (totals.get(f.category) ?? 0) + f.amountCents);
+  }
+  return totals;
+}
+
+/** Spesa NETTA per categoria nel periodo: movimenti − fondi assegnati alla categoria. (I totali del periodo non cambiano.) */
 export function categoryTotals(ledger: Ledger, key: string): Map<string, number> {
   const totals = new Map<string, number>();
   for (const m of movementsForKey(ledger, key)) {
     totals.set(m.category, (totals.get(m.category) ?? 0) + m.amountCents);
+  }
+  for (const [category, funds] of categoryFunds(ledger, key)) {
+    totals.set(category, (totals.get(category) ?? 0) - funds);
   }
   return totals;
 }
@@ -49,16 +62,27 @@ export function categoryTotals(ledger: Ledger, key: string): Map<string, number>
 /** Tutte le categorie con la spesa del periodo (nell'ordine scelto dall'utente), più quelle senza budget che hanno movimenti. */
 export function categoryOverview(ledger: Ledger, key: string): CategoryRow[] {
   const totals = categoryTotals(ledger, key);
+  const funds = categoryFunds(ledger, key);
   const budgeted = new Set(ledger.categories.map((c) => c.name));
   return [
-    ...ledger.categories.map((c) => ({ name: c.name, budgetCents: c.budgetCents as number | null, spentCents: totals.get(c.name) ?? 0 })),
-    ...[...totals.keys()].filter((name) => !budgeted.has(name)).map((name) => ({ name, budgetCents: null, spentCents: totals.get(name) ?? 0 })),
+    ...ledger.categories.map((c) => ({
+      name: c.name,
+      budgetCents: c.budgetCents as number | null,
+      spentCents: totals.get(c.name) ?? 0,
+      fundsCents: funds.get(c.name) ?? 0,
+    })),
+    ...[...totals.keys()]
+      .filter((name) => !budgeted.has(name))
+      .map((name) => ({ name, budgetCents: null, spentCents: totals.get(name) ?? 0, fundsCents: funds.get(name) ?? 0 })),
   ];
 }
 
-/** Le categorie dove si è speso di più (solo con spesa > 0), per la vista sintetica della home. */
+/** Le categorie con movimenti o fondi, dalla spesa netta più alta, per la vista sintetica della home. */
 export function pickTopCategories(rows: readonly CategoryRow[], limit: number): { shown: CategoryRow[]; hiddenCount: number } {
-  const shown = rows.filter((r) => r.spentCents > 0).sort((a, b) => b.spentCents - a.spentCents).slice(0, limit);
+  const shown = rows
+    .filter((r) => r.spentCents > 0 || r.fundsCents > 0)
+    .sort((a, b) => b.spentCents - a.spentCents)
+    .slice(0, limit);
   return { shown, hiddenCount: rows.length - shown.length };
 }
 

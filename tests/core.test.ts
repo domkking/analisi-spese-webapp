@@ -1,4 +1,3 @@
-/** Test della logica (nessun browser): `npm test` — usa il test runner integrato di Node. */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -7,6 +6,7 @@ import {
   addMethod,
   addMovement,
   AppError,
+  categoryFunds,
   categoryOverview,
   categoryTotals,
   centsToDecimalString,
@@ -319,6 +319,96 @@ describe("modifica di categorie e metodi", () => {
     const renamed = updateCategory(baseLedger(), "Casa", "Abitazione", 10_000).ledger;
     assert.doesNotThrow(() => add(renamed, "2026-10-16", "Abitazione", 100));
     assert.throws(() => add(renamed, "2026-10-16", "Casa", 100), ValidationError);
+  });
+});
+
+describe("fondi con categoria", () => {
+  const withFund = (ledger: Ledger, cents: number, category?: string | null, date = "2026-10-20") =>
+    addFund(ledger, { date, description: "Rimborso", amountCents: cents, category }, deps);
+
+  it("«Nessuna categoria» (assente, null o vuota) è un normale versamento", () => {
+    for (const category of [undefined, null, ""]) {
+      const result = withFund(baseLedger(), 5_000, category);
+      assert.equal(result.value.fund.category, null);
+    }
+  });
+
+  it("scala il fondo dalla spesa NETTA della categoria, senza toccare i totali del periodo", () => {
+    let ledger = baseLedger();
+    ledger = add(ledger, "2026-10-16", "Svago", 6_000).ledger;
+    const plain = withFund(ledger, 2_500).ledger;
+    const tagged = withFund(ledger, 2_500, "Svago").ledger;
+    assert.equal(categoryTotals(plain, "2026-10").get("Svago"), 6_000);
+    assert.equal(categoryTotals(tagged, "2026-10").get("Svago"), 3_500);
+    assert.equal(categoryFunds(tagged, "2026-10").get("Svago"), 2_500);
+    // i KPI del periodo sono identici con o senza categoria
+    assert.deepEqual(computeMetrics(tagged, "2026-10", TODAY), { ...computeMetrics(plain, "2026-10", TODAY) });
+  });
+
+  it("la riepilogo mostra spesa netta e fondi; una categoria con soli fondi compare e può essere negativa", () => {
+    let ledger = baseLedger();
+    ledger = add(ledger, "2026-10-16", "Casa", 4_000).ledger;
+    ledger = withFund(ledger, 1_000, "Casa").ledger;
+    ledger = withFund(ledger, 3_000, "Salute").ledger; // nessuna spesa in Salute
+    const rows = categoryOverview(ledger, "2026-10");
+    const casa = rows.find((r) => r.name === "Casa")!;
+    const salute = rows.find((r) => r.name === "Salute")!;
+    assert.deepEqual([casa.spentCents, casa.fundsCents], [3_000, 1_000]);
+    assert.deepEqual([salute.spentCents, salute.fundsCents], [-3_000, 3_000]);
+    const top = pickTopCategories(rows, 5).shown.map((r) => r.name);
+    assert.deepEqual(top, ["Casa", "Salute"]);
+  });
+
+  it("i fondi valgono solo nel proprio periodo", () => {
+    const ledger = withFund(add(baseLedger(), "2026-10-16", "Casa", 4_000).ledger, 1_000, "Casa", "2026-11-20").ledger;
+    assert.equal(categoryTotals(ledger, "2026-10").get("Casa"), 4_000);
+    assert.equal(categoryTotals(ledger, "2026-11").get("Casa"), -1_000);
+  });
+
+  it("gli avvisi di categoria usano la spesa netta", () => {
+    let ledger = add(baseLedger(), "2026-10-16", "Casa", 12_000).ledger; // oltre i 100 €
+    ledger = withFund(ledger, 5_000, "Casa").ledger; // netto 70 €
+    const out = add(ledger, "2026-10-18", "Casa", 4_000); // netto 110 €: ora supera
+    assert.equal(out.value.categoryAlert?.spentCents, 11_000);
+  });
+
+  it("rifiuta una categoria inesistente", () => {
+    assert.throws(() => withFund(baseLedger(), 100, "Inventata"), ValidationError);
+  });
+
+  it("si può cambiare o togliere la categoria di un fondo esistente", () => {
+    const created = withFund(baseLedger(), 2_000, "Casa");
+    const id = created.value.fund.id;
+    const moved = updateFund(created.ledger, id, { date: "2026-10-20", description: "Rimborso", amountCents: 2_000, category: "Svago" });
+    assert.equal(moved.ledger.funds[0]?.category, "Svago");
+    const cleared = updateFund(moved.ledger, id, { date: "2026-10-20", description: "Rimborso", amountCents: 2_000, category: null });
+    assert.equal(cleared.ledger.funds[0]?.category, null);
+    assert.throws(() => updateFund(created.ledger, id, { date: "2026-10-20", description: "", amountCents: 1, category: "Inventata" }), ValidationError);
+  });
+
+  it("rinominando una categoria il fondo la segue; eliminandola torna «senza categoria»", () => {
+    const ledger = withFund(baseLedger(), 2_000, "Casa").ledger;
+    const renamed = updateCategory(ledger, "Casa", "Abitazione", 10_000).ledger;
+    assert.equal(renamed.funds[0]?.category, "Abitazione");
+    const deleted = deleteCategory(renamed, "Abitazione").ledger;
+    assert.equal(deleted.funds[0]?.category, null);
+    assert.equal(deleted.funds.length, 1);
+  });
+
+  it("round-trip del file; i file senza «categoria» restano validi", () => {
+    const ledger = withFund(withFund(baseLedger(), 2_000, "Casa").ledger, 500).ledger;
+    const text = serializeLedger(ledger);
+    assert.ok(text.includes('"categoria": "Casa"'));
+    assert.deepEqual(parseBackup(text, newId), ledger);
+    const old = ledgerFromJson({ fondi: [{ data: "2026-10-16", importo: "1.00" }] }, newId);
+    assert.equal(old.funds[0]?.category, null);
+  });
+
+  it("nel file, una categoria inesistente diventa «senza categoria»; un tipo errato è rifiutato", () => {
+    const row = { data: "2026-10-16", importo: "1.00" };
+    const ledger = ledgerFromJson({ categorie: { Casa: "10.00" }, fondi: [{ ...row, categoria: "Fantasma" }, { ...row, categoria: "Casa" }] }, newId);
+    assert.deepEqual(ledger.funds.map((f) => f.category), [null, "Casa"]);
+    assert.throws(() => ledgerFromJson({ fondi: [{ ...row, categoria: 42 }] }, newId), ValidationError);
   });
 });
 

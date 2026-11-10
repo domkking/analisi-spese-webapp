@@ -36,6 +36,7 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
   useEffect(() => setDate(defaultDate), [defaultDate]);
 
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState(""); // «» = nessuna categoria
   const [amount, setAmount] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -47,6 +48,8 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
     if (editingId !== null && editing === null) setEditingId(null);
   }, [editingId, editing]);
 
+  // se la categoria scelta non esiste più si torna a «Nessuna categoria»
+  const categoryValue = category === "" || ledger.categories.some((c) => c.name === category) ? category : "";
   const selectedIds = rows.filter((f) => selected.has(f.id)).map((f) => f.id);
   const allSelected = rows.length > 0 && selectedIds.length === rows.length;
 
@@ -54,6 +57,7 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
     setEditingId(f.id);
     setDate(f.date);
     setDescription(f.description);
+    setCategory(f.category ?? "");
     setAmount(formatInput(f.amountCents));
     formRef.current?.scrollIntoView({ block: "nearest" });
     descriptionRef.current?.focus();
@@ -62,6 +66,7 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
   function resetForm(): void {
     setEditingId(null);
     setDescription("");
+    setCategory("");
     setAmount("");
     setDate(defaultDate);
   }
@@ -70,7 +75,7 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
     event.preventDefault();
     const wasEditing = editing;
     const outcome = await commit((l) => {
-      const input = { date, description, amountCents: parseAmount(amount) };
+      const input = { date, description, amountCents: parseAmount(amount), category: categoryValue === "" ? null : categoryValue };
       return wasEditing ? updateFund(l, wasEditing.id, input) : addFund(l, input, { newId, today });
     });
     if (!outcome) return;
@@ -116,6 +121,16 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
         <Field label="Descrizione" className="grow">
           <input ref={descriptionRef} maxLength={120} placeholder="Es. Rimborso, bonus, versamento" value={description} onChange={(e) => setDescription(e.target.value)} autoComplete="off" />
         </Field>
+        <Field label="Categoria">
+          <select value={categoryValue} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">Nessuna categoria</option>
+            {ledger.categories.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label="Importo (€)" className="narrow">
           <input inputMode="decimal" placeholder="0,00" required value={amount} onChange={(e) => setAmount(e.target.value)} autoComplete="off" />
         </Field>
@@ -132,6 +147,9 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
         <p className="muted params-note">
           I fondi aumentano il saldo del periodo in cui cadono. Con il minimo <strong>automatico</strong> il minimo sale dello stesso importo (il budget non cambia):
           per spendere i fondi aumenta i budget delle categorie. Con il minimo <strong>manuale</strong> aumentano invece il budget spendibile.
+          <br />
+          <strong>Categoria</strong>: se scegli una categoria (es. un rimborso), l'importo viene scalato dalle spese di quella categoria nel riepilogo «Dove stai spendendo» e nel
+          grafico. Con «Nessuna categoria» il fondo è un normale versamento e non cambia nessun riepilogo per categoria.
         </p>
       </form>
 
@@ -145,12 +163,12 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
           <p className="muted">Nessun fondo aggiunto in questo periodo.</p>
         ) : (
           <RecordList
-            columns={[{ title: "Data" }, { title: "Descrizione" }, { title: "Importo", numeric: true }]}
+            columns={[{ title: "Data" }, { title: "Descrizione" }, { title: "Categoria" }, { title: "Importo", numeric: true }]}
             rows={rows.map((f) => ({
               id: f.id,
-              cells: [formatDateIt(f.date), f.description, `+${formatEur(f.amountCents)}`],
+              cells: [formatDateIt(f.date), f.description, f.category ?? "—", `+${formatEur(f.amountCents)}`],
               title: f.description || "Versamento",
-              meta: formatDateIt(f.date),
+              meta: f.category ? `${formatDateIt(f.date)} · ${f.category}` : formatDateIt(f.date),
               amount: `+${formatEur(f.amountCents)}`,
               selectLabel: `Seleziona ${f.description || "versamento"}`,
               editLabel: `Modifica ${f.description || "versamento"}`,

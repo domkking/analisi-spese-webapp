@@ -147,11 +147,11 @@ function CategoryPanel({ rows }: { rows: readonly CategoryRow[] }) {
         <p className="muted">Nessuna spesa registrata in questo periodo.</p>
       ) : (
         <ul className="cat-rows">
-          {visible.map(({ name, budgetCents: budget, spentCents: spent }) => {
+          {visible.map(({ name, budgetCents: budget, spentCents: spent, fundsCents }) => {
             const over = budget !== null && spent > budget;
             const warn = budget !== null && !over && spent * 5 >= budget * 4;
             const tone: Tone = budget === null ? "neutral" : over ? "bad" : warn ? "warn" : "ok";
-            const width = budget === null ? 0 : budget > 0 ? Math.min(100, (spent / budget) * 100) : spent > 0 ? 100 : 0;
+            const width = budget === null ? 0 : budget > 0 ? Math.max(0, Math.min(100, (spent / budget) * 100)) : spent > 0 ? 100 : 0;
             return (
               <li key={name}>
                 <div className="cat-head">
@@ -163,6 +163,7 @@ function CategoryPanel({ rows }: { rows: readonly CategoryRow[] }) {
                 <div className={`progress thin tone-${tone}`}>
                   <div style={{ width: `${width}%` }} />
                 </div>
+                {fundsCents > 0 && <div className="cat-note muted">al netto di {formatEur(fundsCents)} di fondi</div>}
               </li>
             );
           })}
@@ -270,6 +271,7 @@ export function Dashboard({ periodKey }: { periodKey: string }) {
 
       <Collapsible id="chart" title="Distribuzione delle spese" open={chartOpen} onToggle={setChartOpen}>
         <Donut items={chartItems} />
+        {overview.some((row) => row.fundsCents > 0) && <p className="muted donut-note">Spese al netto dei fondi assegnati alle categorie.</p>}
       </Collapsible>
 
       <Collapsible

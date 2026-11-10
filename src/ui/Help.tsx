@@ -40,6 +40,11 @@ export function Help() {
         delle categorie: per spendere i fondi aumenta i budget delle categorie. Con il minimo <em>manuale</em> i fondi aumentano direttamente il budget
         spendibile.
       </p>
+      <p>
+        Nel modulo puoi scegliere anche una <em>categoria</em>: serve per i rimborsi o i recuperi (es. un rimborso sanitario in «Salute»). L'importo viene scalato
+        dalle spese di quella categoria in «Dove stai spendendo» e nel grafico, che si aggiornano da soli. Con <em>Nessuna categoria</em> il fondo è un normale
+        versamento e non cambia nessun riepilogo per categoria; i totali del periodo (saldo, minimo, budget) non dipendono dalla categoria.
+      </p>
 
       <h3>4. Categorie e metodi</h3>
       <p>
