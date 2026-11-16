@@ -101,10 +101,12 @@ export interface PeriodMetrics {
   readonly endDate: string;
   /** Saldo a inizio periodo (senza i fondi aggiunti). */
   readonly startBalanceCents: number;
-  /** Totale dei fondi aggiunti nel periodo. */
+  /** Totale dei fondi aggiunti nel periodo (con o senza categoria). */
   readonly fundsCents: number;
   readonly fundCount: number;
-  /** Saldo di partenza effettivo: inizio periodo + fondi. Su questo si calcolano minimo, budget e saldo attuale. */
+  /** Parte dei fondi assegnata a una categoria (già scalata dalla spesa netta: non alza il minimo). */
+  readonly categorizedFundsCents: number;
+  /** Saldo di partenza effettivo: inizio periodo + fondi SENZA categoria. Su questo si calcolano minimo e budget. */
   readonly openingBalanceCents: number;
   readonly minBalanceCents: number;
   /** true se il minimo è calcolato (saldo iniziale − totale budget), false se impostato a mano. */
@@ -112,6 +114,7 @@ export interface PeriodMetrics {
   /** Valore automatico del minimo (anche quando è in uso quello manuale). */
   readonly autoMinBalanceCents: number;
   readonly budgetCents: number;
+  /** Spesa NETTA del periodo: movimenti − fondi assegnati a una categoria (i rimborsi contano come spesa negativa). */
   readonly spentCents: number;
   readonly remainingBudgetCents: number;
   /** Percentuale usata, in decimi di punto (305 = 30,5 %). */
@@ -127,7 +130,7 @@ export interface PeriodMetrics {
   readonly movementCount: number;
   /** true se «oggi» cade nel periodo visualizzato (altrimenti le spese di oggi non si applicano). */
   readonly todayInPeriod: boolean;
-  /** Spese con data odierna (solo uscite: i fondi non contano). */
+  /** Spese con data odierna (movimenti lordi: i fondi non contano). */
   readonly todaySpentCents: number;
   readonly todayMovementCount: number;
   readonly overBudget: boolean;

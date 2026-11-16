@@ -7,7 +7,7 @@ Stack: React 19 + TypeScript (rigoroso) + Vite. Nessun'altra dipendenza a runtim
 
 ## Stato delle verifiche (leggi prima di pubblicare)
 Questo progetto è stato scritto e provato in un ambiente **senza accesso a internet**, quindi `npm install` e `vite build` **non sono stati eseguiti**. Verificato:
-- 71 test della logica (`npm test`) ✔
+- 79 test della logica (`npm test`) ✔
 - Controllo dei tipi (TypeScript, tutte le opzioni rigorose) ✔ — con tipi React semplificati
 - Test end-to-end in Chromium reale (inserimento, fondi, finestre di conferma, persistenza, backup/import, file corrotti, più schede, drag & drop, CSP attiva senza errori) ✔ — con un bundle esbuild equivalente
 
@@ -130,10 +130,12 @@ Obiettivo: in una schermata di cellulare solo ciò che serve a decidere. Su un p
 **Regole del progetto**: nessun colore di stato scritto «a mano» fuori dai token; ogni pulsante pieno usa `--btn`; ogni elenco con importi deve avere una vista a schede sotto i 640 px.
 **Verifica**: contrasto dei colori misurato in entrambi i temi, geometria delle sezioni, schede a 320/360/390 px, assenza di sovrapposizioni e di allargamenti della pagina.
 
-## Fondi con categoria (versione 1.7)
-Nel modulo *Fondi* si può scegliere una **categoria** oppure **«Nessuna categoria»** (predefinita: un normale versamento, nessun riepilogo per categoria cambia).
-- Con una categoria (es. un rimborso sanitario in «Salute») l'importo viene **scalato dalla spesa di quella categoria**: la spesa mostrata è *netta* (`movimenti − fondi`) in «Dove stai spendendo», nel grafico e negli avvisi di superamento della categoria. Il pannello indica «al netto di X € di fondi», il grafico riporta la nota e un netto negativo (rimborso > spese) si vede nel pannello ma non nel grafico.
-- **I totali del periodo non cambiano** con la categoria (saldo, minimo, budget, «Spese del periodo» restano quelli di prima): la categoria incide solo sui riepiloghi per categoria.
+## Fondi con categoria (versioni 1.7 e 1.7.1)
+Nel modulo *Fondi* si può scegliere una **categoria** oppure **«Nessuna categoria»** (predefinita: un normale versamento).
+- **Con una categoria** (es. un rimborso sanitario in «Salute») il fondo è una **spesa negativa**: viene scalato dalla spesa di quella categoria *e* da quella del periodo. Si aggiornano «Dove stai spendendo», il grafico, gli avvisi di superamento, «Spese del periodo» (indicata «al netto di X € di fondi»), la **percentuale utilizzata**, il **budget residuo** (+ l'importo) e il saldo attuale (+ l'importo). Il **saldo minimo automatico non sale**.
+- **Senza categoria**: il fondo alza il saldo di partenza e, con il minimo automatico, anche il minimo (il budget residuo resta uguale); con il minimo manuale aumenta il budget spendibile.
+- **Invariante** (verificata da test in ogni combinazione di fondi, minimo automatico/manuale, rimborsi maggiori della spesa): `budget residuo = saldo attuale − saldo minimo`.
+- Come funziona nel core: `spentByKey` è la spesa NETTA (movimenti − fondi con categoria) e `fundsByKey` conta solo i fondi senza categoria; `categoryTotals`/`categoryOverview` restano per categoria. Il riporto nei periodi successivi è identico per i due tipi di fondo. «Spese di oggi» resta lorda (acquisti fatti oggi).
+- Un rimborso maggiore della spesa dà una spesa netta negativa (visibile nel pannello, esclusa dal grafico, percentuale mai sotto 0 %).
 - Rinominando una categoria il fondo la segue; eliminandola il fondo torna «senza categoria» (i movimenti conservano il nome come storico).
 - Formato file versione 4: la chiave `categoria` compare nei fondi solo se assegnata; i file senza (versioni precedenti, app desktop) si importano normalmente, e una categoria inesistente nel file diventa «senza categoria».
-- Core: `categoryFunds`, `categoryTotals` (ora netta), `categoryOverview` (con `fundsCents`), `addFund/updateFund` con `category`, tutti con test.

@@ -148,8 +148,9 @@ export function Funds({ periodKey, onPeriodChange }: Props) {
           I fondi aumentano il saldo del periodo in cui cadono. Con il minimo <strong>automatico</strong> il minimo sale dello stesso importo (il budget non cambia):
           per spendere i fondi aumenta i budget delle categorie. Con il minimo <strong>manuale</strong> aumentano invece il budget spendibile.
           <br />
-          <strong>Categoria</strong>: se scegli una categoria (es. un rimborso), l'importo viene scalato dalle spese di quella categoria nel riepilogo «Dove stai spendendo» e nel
-          grafico. Con «Nessuna categoria» il fondo è un normale versamento e non cambia nessun riepilogo per categoria.
+          <strong>Categoria</strong>: se scegli una categoria (es. un rimborso), l'importo viene scalato dalle spese di quella categoria e del periodo: si aggiornano «Dove stai
+          spendendo», il grafico, la percentuale utilizzata e il <strong>budget residuo</strong> (che aumenta dello stesso importo); il saldo minimo automatico non sale. Con
+          «Nessuna categoria» il fondo è un normale versamento: nessun riepilogo per categoria cambia.
         </p>
       </form>
 

@@ -42,7 +42,7 @@ function ParamsForm({ periodKey, metrics: m, payDay, totalBudget }: ParamsFormPr
   /** Finché il minimo è automatico, segue il saldo che stai digitando: saldo + fondi − totale budget. */
   function autoMinFor(startValue: string): string {
     try {
-      return formatInput(parseAmount(startValue) + m.fundsCents - totalBudget);
+      return formatInput(parseAmount(startValue) + (m.openingBalanceCents - m.startBalanceCents) - totalBudget);
     } catch {
       return minText; // saldo non ancora valido: lascia com'è
     }
@@ -98,8 +98,8 @@ function ParamsForm({ periodKey, metrics: m, payDay, totalBudget }: ParamsFormPr
       </button>
       <p className="muted params-note">
         {minManual
-          ? `Minimo impostato a mano. Automatico: ${formatEur(m.autoMinBalanceCents)} (saldo iniziale${m.fundsCents > 0 ? " + fondi" : ""} − totale budget ${formatEur(totalBudget)}).`
-          : `Minimo automatico: saldo iniziale${m.fundsCents > 0 ? ` + fondi (${formatEur(m.fundsCents)})` : ""} − totale budget (${formatEur(totalBudget)}). Scrivi un valore per impostarlo a mano.`}
+          ? `Minimo impostato a mano. Automatico: ${formatEur(m.autoMinBalanceCents)} (saldo iniziale${m.openingBalanceCents !== m.startBalanceCents ? " + fondi" : ""} − totale budget ${formatEur(totalBudget)}).`
+          : `Minimo automatico: saldo iniziale${m.openingBalanceCents !== m.startBalanceCents ? ` + fondi (${formatEur(m.openingBalanceCents - m.startBalanceCents)})` : ""} − totale budget (${formatEur(totalBudget)}). Scrivi un valore per impostarlo a mano.`}
       </p>
     </form>
   );
@@ -251,15 +251,23 @@ export function Dashboard({ periodKey }: { periodKey: string }) {
 
       <Collapsible id="details" title="Dettagli del periodo" open={detailsOpen} onToggle={setDetailsOpen}>
         <div className="kpis">
-          <Kpi title="Saldo minimo" value={formatEur(m.minBalanceCents)} sub={m.minBalanceIsAuto ? "automatico" : "impostato a mano"} />
-          <Kpi title="Budget spendibile" value={formatEur(m.budgetCents)} sub={m.fundsCents > 0 ? "saldo + fondi − minimo" : "saldo iniziale − minimo"} />
+          <Kpi title="Saldo minimo desiderato" value={formatEur(m.minBalanceCents)} sub={m.minBalanceIsAuto ? "automatico" : "impostato a mano"} />
+          <Kpi title="Budget spendibile" value={formatEur(m.budgetCents)} sub={m.openingBalanceCents !== m.startBalanceCents ? "saldo + fondi − minimo" : "saldo iniziale − minimo"} />
           <Kpi
             title="Fondi aggiunti"
             value={m.fundsCents > 0 ? `+${formatEur(m.fundsCents)}` : formatEur(0)}
-            sub={plural(m.fundCount, "versamento", "versamenti")}
+            sub={m.categorizedFundsCents > 0 ? `${plural(m.fundCount, "versamento", "versamenti")} · ${formatEur(m.categorizedFundsCents)} su categorie` : plural(m.fundCount, "versamento", "versamenti")}
             tone={m.fundsCents > 0 ? "ok" : "neutral"}
           />
-          <Kpi title="Spese del periodo" value={formatEur(m.spentCents)} sub={plural(m.movementCount, "movimento", "movimenti")} />
+          <Kpi
+            title="Spese del periodo"
+            value={formatEur(m.spentCents)}
+            sub={
+              m.categorizedFundsCents > 0
+                ? `${plural(m.movementCount, "movimento", "movimenti")} · al netto di ${formatEur(m.categorizedFundsCents)} di fondi`
+                : plural(m.movementCount, "movimento", "movimenti")
+            }
+          />
           <Kpi title="Spesa media giornaliera" value={formatEur(m.dailyAverageCents)} sub="sui giorni trascorsi" />
           <Kpi
             title="Spesa più alta"
@@ -282,7 +290,7 @@ export function Dashboard({ periodKey }: { periodKey: string }) {
         onToggle={setParamsOpen}
       >
         <ParamsForm
-          key={`${periodKey}|${m.startBalanceCents}|${m.fundsCents}|${m.minBalanceCents}|${m.minBalanceIsAuto}|${ledger.payDay}`}
+          key={`${periodKey}|${m.startBalanceCents}|${m.openingBalanceCents}|${m.minBalanceCents}|${m.minBalanceIsAuto}|${ledger.payDay}`}
           periodKey={periodKey}
           metrics={m}
           payDay={ledger.payDay}

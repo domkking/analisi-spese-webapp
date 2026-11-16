@@ -6,11 +6,21 @@ import { daysBetween, keyForDate, keyInRange, nextKey, periodBounds, prevKey } f
 
 export type SpentByKey = ReadonlyMap<string, number>;
 
+/**
+ * Spesa NETTA per periodo: movimenti − fondi assegnati a una categoria (rimborsi/recuperi).
+ * Con questa definizione budget residuo, % utilizzata, saldo attuale e riporto restano coerenti:
+ * budget residuo = saldo attuale − saldo minimo, qualunque sia il tipo di fondo.
+ */
 export function spentByKey(ledger: Ledger): Map<string, number> {
   const totals = new Map<string, number>();
   for (const m of ledger.movements) {
     const key = keyForDate(m.date, ledger.payDay);
     totals.set(key, (totals.get(key) ?? 0) + m.amountCents);
+  }
+  for (const f of ledger.funds) {
+    if (f.category === null) continue;
+    const key = keyForDate(f.date, ledger.payDay);
+    totals.set(key, (totals.get(key) ?? 0) - f.amountCents);
   }
   return totals;
 }
@@ -22,9 +32,11 @@ export function movementsForKey(ledger: Ledger, key: string): Movement[] {
     .sort((a, b) => (a.date === b.date ? (a.id < b.id ? 1 : -1) : a.date < b.date ? 1 : -1));
 }
 
+/** Fondi SENZA categoria per periodo: sono gli unici che alzano il saldo di partenza (e quindi il minimo automatico). */
 export function fundsByKey(ledger: Ledger): Map<string, number> {
   const totals = new Map<string, number>();
   for (const f of ledger.funds) {
+    if (f.category !== null) continue;
     const key = keyForDate(f.date, ledger.payDay);
     totals.set(key, (totals.get(key) ?? 0) + f.amountCents);
   }
@@ -160,7 +172,8 @@ export function computeMetrics(ledger: Ledger, key: string, today: string): Peri
   const minBalanceCents = ledger.overrides[key]?.minBalanceCents ?? autoMinBalanceCents;
   const fundList = fundsForKey(ledger, key);
   const fundsCents = fundList.reduce((sum, f) => sum + f.amountCents, 0);
-  const openingBalanceCents = startBalanceCents + fundsCents;
+  const categorizedFundsCents = fundList.filter((f) => f.category !== null).reduce((sum, f) => sum + f.amountCents, 0);
+  const openingBalanceCents = startBalanceCents + (fundsByKey(ledger).get(key) ?? 0); // solo i fondi senza categoria
   const budgetCents = openingBalanceCents - minBalanceCents;
   const spentCents = spentMap.get(key) ?? 0;
   const remainingBudgetCents = budgetCents - spentCents;
@@ -168,7 +181,7 @@ export function computeMetrics(ledger: Ledger, key: string, today: string): Peri
 
   const percentTenths =
     budgetCents > 0
-      ? Number(divRound(BigInt(spentCents) * 1000n, BigInt(budgetCents)))
+      ? Math.max(0, Number(divRound(BigInt(spentCents) * 1000n, BigInt(budgetCents)))) // rimborsi > spese: mai sotto 0 %
       : spentCents > 0
         ? 1000
         : 0;
@@ -197,6 +210,7 @@ export function computeMetrics(ledger: Ledger, key: string, today: string): Peri
     startBalanceCents,
     fundsCents,
     fundCount: fundList.length,
+    categorizedFundsCents,
     openingBalanceCents,
     minBalanceCents,
     minBalanceIsAuto: ledger.overrides[key]?.minBalanceCents === undefined,

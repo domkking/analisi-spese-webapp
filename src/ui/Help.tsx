@@ -42,8 +42,9 @@ export function Help() {
       </p>
       <p>
         Nel modulo puoi scegliere anche una <em>categoria</em>: serve per i rimborsi o i recuperi (es. un rimborso sanitario in «Salute»). L'importo viene scalato
-        dalle spese di quella categoria in «Dove stai spendendo» e nel grafico, che si aggiornano da soli. Con <em>Nessuna categoria</em> il fondo è un normale
-        versamento e non cambia nessun riepilogo per categoria; i totali del periodo (saldo, minimo, budget) non dipendono dalla categoria.
+        dalle spese di quella categoria e del periodo: si aggiornano «Dove stai spendendo», il grafico, la percentuale utilizzata e il <em>budget residuo</em>, che
+        aumenta dello stesso importo (il saldo minimo automatico non sale). Con <em>Nessuna categoria</em> il fondo è un normale versamento: non cambia nessun
+        riepilogo per categoria e, con il minimo automatico, il budget residuo resta uguale.
       </p>
 
       <h3>4. Categorie e metodi</h3>

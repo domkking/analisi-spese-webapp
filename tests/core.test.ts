@@ -333,7 +333,7 @@ describe("fondi con categoria", () => {
     }
   });
 
-  it("scala il fondo dalla spesa NETTA della categoria, senza toccare i totali del periodo", () => {
+  it("scala il fondo dalla spesa NETTA della categoria", () => {
     let ledger = baseLedger();
     ledger = add(ledger, "2026-10-16", "Svago", 6_000).ledger;
     const plain = withFund(ledger, 2_500).ledger;
@@ -341,8 +341,94 @@ describe("fondi con categoria", () => {
     assert.equal(categoryTotals(plain, "2026-10").get("Svago"), 6_000);
     assert.equal(categoryTotals(tagged, "2026-10").get("Svago"), 3_500);
     assert.equal(categoryFunds(tagged, "2026-10").get("Svago"), 2_500);
-    // i KPI del periodo sono identici con o senza categoria
-    assert.deepEqual(computeMetrics(tagged, "2026-10", TODAY), { ...computeMetrics(plain, "2026-10", TODAY) });
+  });
+
+  describe("effetto sul budget residuo e sui totali del periodo", () => {
+    const autoLedger = (): Ledger => savePeriodParams(createDefaultLedger(), "2026-10", 1_000_000, null, 15).ledger; // minimo automatico, budget 560 €
+    const manualLedger = (): Ledger => savePeriodParams(createDefaultLedger(), "2026-10", 1_000_000, 950_000, 15).ledger; // minimo 9.500 €, budget 500 €
+    const spend = (l: Ledger) => add(l, "2026-10-16", "Svago", 6_000).ledger;
+    const metrics = (l: Ledger) => computeMetrics(l, "2026-10", TODAY);
+    const identity = (l: Ledger) => {
+      const m = metrics(l);
+      assert.equal(m.remainingBudgetCents, m.currentBalanceCents - m.minBalanceCents, "budget residuo = saldo attuale − minimo");
+    };
+
+    it("con minimo automatico: un rimborso aumenta il budget residuo e NON alza il minimo", () => {
+      const before = metrics(spend(autoLedger()));
+      const after = metrics(withFund(spend(autoLedger()), 2_500, "Svago").ledger);
+      assert.equal(before.remainingBudgetCents, 50_000);
+      assert.equal(after.remainingBudgetCents, 52_500); // +25 €
+      assert.equal(after.spentCents, 3_500); // spesa netta: 60 − 25
+      assert.equal(after.minBalanceCents, before.minBalanceCents); // il minimo non sale
+      assert.equal(after.budgetCents, before.budgetCents);
+      assert.equal(after.currentBalanceCents, before.currentBalanceCents + 2_500); // il saldo sale dell'importo
+      assert.equal(after.percentTenths, 63); // 35 € su 560 € = 6,25 % → 6,3
+      assert.equal(after.fundsCents, 2_500);
+      assert.equal(after.categorizedFundsCents, 2_500);
+      assert.equal(after.openingBalanceCents, 1_000_000); // i fondi con categoria non entrano nel saldo di partenza
+    });
+
+    it("con minimo automatico: un fondo SENZA categoria lascia invariato il budget residuo (sale il minimo)", () => {
+      const before = metrics(spend(autoLedger()));
+      const after = metrics(withFund(spend(autoLedger()), 2_500).ledger);
+      assert.equal(after.remainingBudgetCents, before.remainingBudgetCents);
+      assert.equal(after.minBalanceCents, before.minBalanceCents + 2_500);
+      assert.equal(after.spentCents, before.spentCents);
+      assert.equal(after.categorizedFundsCents, 0);
+    });
+
+    it("con minimo manuale: sia i fondi con categoria sia quelli senza aumentano il budget residuo", () => {
+      const before = metrics(spend(manualLedger()));
+      const tagged = metrics(withFund(spend(manualLedger()), 2_500, "Svago").ledger);
+      const plain = metrics(withFund(spend(manualLedger()), 2_500).ledger);
+      assert.equal(before.remainingBudgetCents, 44_000);
+      assert.equal(tagged.remainingBudgetCents, 46_500);
+      assert.equal(plain.remainingBudgetCents, 46_500);
+      assert.equal(tagged.budgetCents, 50_000); // con categoria: è la spesa a scendere
+      assert.equal(plain.budgetCents, 52_500); // senza categoria: sale il budget spendibile
+    });
+
+    it("budget residuo = saldo attuale − minimo, in ogni combinazione", () => {
+      for (const make of [autoLedger, manualLedger]) {
+        identity(spend(make()));
+        identity(withFund(spend(make()), 2_500, "Svago").ledger);
+        identity(withFund(spend(make()), 2_500).ledger);
+        identity(withFund(withFund(spend(make()), 1_000, "Casa").ledger, 700).ledger);
+        identity(withFund(make(), 10_000, "Salute").ledger); // rimborso senza spese
+      }
+    });
+
+    it("il rimborso si riporta nel periodo successivo come un fondo senza categoria", () => {
+      const tagged = withFund(spend(autoLedger()), 2_500, "Svago").ledger;
+      const plain = withFund(spend(autoLedger()), 2_500).ledger;
+      const next = (l: Ledger) => startBalance(l, "2026-11", spentByKey(l), TODAY);
+      assert.equal(next(tagged), 996_500); // 10.000 − (60 − 25)
+      assert.equal(next(plain), 996_500); // 10.000 + 25 − 60
+    });
+
+    it("rimborso maggiore della spesa: spesa netta negativa, % mai sotto 0, budget residuo oltre il budget", () => {
+      const m = metrics(withFund(autoLedger(), 10_000, "Salute").ledger); // nessuna spesa, rimborso 100 €
+      assert.equal(m.spentCents, -10_000);
+      assert.equal(m.percentTenths, 0);
+      assert.equal(m.remainingBudgetCents, 66_000); // 560 € + 100 €
+      assert.equal(m.overBudget, false);
+    });
+
+    it("«Spese di oggi» resta lorda e i totali dei movimenti non cambiano", () => {
+      const ledger = withFund(add(autoLedger(), "2026-10-24", "Svago", 6_000).ledger, 2_500, "Svago", "2026-10-24").ledger;
+      const m = metrics(ledger);
+      assert.equal(m.todaySpentCents, 6_000);
+      assert.equal(m.movementCount, 1);
+      assert.equal(m.topMovement?.amountCents, 6_000);
+    });
+
+    it("l'avviso di superamento del periodo usa la spesa netta", () => {
+      let ledger = autoLedger(); // budget 560 €
+      ledger = add(ledger, "2026-10-16", "Alimentari", 58_000).ledger; // 580 €: già oltre
+      ledger = withFund(ledger, 5_000, "Alimentari").ledger; // netto 530 €: rientra
+      const out = add(ledger, "2026-10-18", "Casa", 4_000); // netto 570 €: supera di 10 €
+      assert.equal(out.value.periodOverrunCents, 1_000);
+    });
   });
 
   it("la riepilogo mostra spesa netta e fondi; una categoria con soli fondi compare e può essere negativa", () => {
